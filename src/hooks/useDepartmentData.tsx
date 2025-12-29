@@ -526,7 +526,7 @@ export function useRestaurantOrders(status?: string) {
         query = query.eq('status', status);
       }
       
-      const { data, error } = await query.limit(100);
+      const { data, error } = await query;
       if (error) throw error;
       return data as DepartmentOrder[];
     },
