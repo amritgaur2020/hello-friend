@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useHotelSettings } from '@/hooks/useHotelSettings';
 import { useHotelPLData, DepartmentPLData } from '@/hooks/useHotelPLData';
+import { useBudgetTargets, calculateBudgetComparisons } from '@/hooks/useBudgetTargets';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AccessDenied } from '@/components/shared/AccessDenied';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,10 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { toast } from '@/hooks/use-toast';
 import {
   TrendingUp,
   TrendingDown,
@@ -28,6 +33,10 @@ import {
   GitCompare,
   RefreshCw,
   CalendarIcon,
+  Target,
+  Plus,
+  Check,
+  X,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -85,11 +94,61 @@ export default function HotelPLReport() {
     forecastDays,
   });
 
+  // Budget targets
+  const { budgets, saveBudget, getBudgetForMonth, isLoading: budgetsLoading } = useBudgetTargets();
+  const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
+  const [selectedBudgetDept, setSelectedBudgetDept] = useState('');
+  const [budgetMonth, setBudgetMonth] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [revenueTarget, setRevenueTarget] = useState('');
+  const [cogsTarget, setCogsTarget] = useState('');
+  const [profitTarget, setProfitTarget] = useState('');
+
+  // Calculate budget comparisons
+  const budgetComparisons = calculateBudgetComparisons(
+    departments,
+    getBudgetForMonth,
+    dateRange?.from || startDate
+  );
+
   // Set default department selections when data loads
   if (departments.length >= 2 && !dept1 && !dept2) {
     setDept1(departments[0]?.department || '');
     setDept2(departments[1]?.department || '');
   }
+
+  const handleSaveBudget = async () => {
+    if (!selectedBudgetDept) {
+      toast({ title: 'Error', description: 'Please select a department', variant: 'destructive' });
+      return;
+    }
+    
+    await saveBudget({
+      department: selectedBudgetDept,
+      month: budgetMonth,
+      revenue_target: parseFloat(revenueTarget) || 0,
+      cogs_budget: parseFloat(cogsTarget) || 0,
+      profit_target: parseFloat(profitTarget) || 0,
+    });
+    
+    toast({ title: 'Success', description: 'Budget target saved successfully' });
+    setBudgetDialogOpen(false);
+    setRevenueTarget('');
+    setCogsTarget('');
+    setProfitTarget('');
+  };
+
+  const openBudgetDialog = (dept?: string) => {
+    if (dept) {
+      setSelectedBudgetDept(dept);
+      const existingBudget = getBudgetForMonth(dept, dateRange?.from || startDate);
+      if (existingBudget) {
+        setRevenueTarget(existingBudget.revenue_target.toString());
+        setCogsTarget(existingBudget.cogs_budget.toString());
+        setProfitTarget(existingBudget.profit_target.toString());
+      }
+    }
+    setBudgetDialogOpen(true);
+  };
 
   if (authLoading) {
     return (
@@ -281,9 +340,10 @@ export default function HotelPLReport() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
+            <TabsTrigger value="budgets">Budgets</TabsTrigger>
             <TabsTrigger value="comparison">Comparison</TabsTrigger>
             <TabsTrigger value="forecasting">Forecasting</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
@@ -441,6 +501,247 @@ export default function HotelPLReport() {
                         </tr>
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Budgets Tab */}
+          <TabsContent value="budgets" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Budget vs Actual
+                    </CardTitle>
+                    <CardDescription>
+                      Monthly revenue and cost targets per department
+                    </CardDescription>
+                  </div>
+                  <Dialog open={budgetDialogOpen} onOpenChange={setBudgetDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button onClick={() => openBudgetDialog()}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Set Budget
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Set Department Budget</DialogTitle>
+                        <DialogDescription>
+                          Set monthly revenue and cost targets for a department
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>Department</Label>
+                          <Select value={selectedBudgetDept} onValueChange={setSelectedBudgetDept}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select department" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {departments.map(d => (
+                                <SelectItem key={d.department} value={d.department}>
+                                  {d.displayName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Month</Label>
+                          <Input 
+                            type="month" 
+                            value={budgetMonth.substring(0, 7)} 
+                            onChange={(e) => setBudgetMonth(e.target.value + '-01')} 
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Revenue Target ({currencySymbol})</Label>
+                          <Input 
+                            type="number" 
+                            placeholder="e.g., 250000" 
+                            value={revenueTarget}
+                            onChange={(e) => setRevenueTarget(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>COGS Budget ({currencySymbol})</Label>
+                          <Input 
+                            type="number" 
+                            placeholder="e.g., 75000" 
+                            value={cogsTarget}
+                            onChange={(e) => setCogsTarget(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Profit Target ({currencySymbol})</Label>
+                          <Input 
+                            type="number" 
+                            placeholder="e.g., 175000" 
+                            value={profitTarget}
+                            onChange={(e) => setProfitTarget(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setBudgetDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleSaveBudget}>
+                          Save Budget
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading || budgetsLoading ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : budgetComparisons.every(bc => bc.revenueTarget === 0) ? (
+                  <div className="text-center py-12">
+                    <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">No Budget Targets Set</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Set monthly revenue and cost targets to track performance against goals
+                    </p>
+                    <Button onClick={() => openBudgetDialog()}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Set First Budget
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {budgetComparisons.filter(bc => bc.revenueTarget > 0).map((bc, i) => (
+                      <div key={bc.department} className="space-y-3 p-4 rounded-lg border">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                            <span className="font-medium">{bc.displayName}</span>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => openBudgetDialog(bc.department)}>
+                            Edit
+                          </Button>
+                        </div>
+                        
+                        {/* Revenue Progress */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Revenue</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{formatCurrency(bc.revenueActual)}</span>
+                              <span className="text-muted-foreground">/ {formatCurrency(bc.revenueTarget)}</span>
+                              <Badge variant={bc.revenuePercent >= 90 ? 'default' : bc.revenuePercent >= 70 ? 'secondary' : 'destructive'}>
+                                {bc.revenuePercent.toFixed(0)}%
+                              </Badge>
+                            </div>
+                          </div>
+                          <Progress 
+                            value={Math.min(bc.revenuePercent, 100)} 
+                            className={cn("h-2", bc.revenuePercent >= 100 && "bg-green-200")}
+                          />
+                          <div className="flex items-center gap-1 text-xs">
+                            {bc.revenueVariance >= 0 ? (
+                              <Check className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <X className="h-3 w-3 text-red-500" />
+                            )}
+                            <span className={bc.revenueVariance >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {bc.revenueVariance >= 0 ? '+' : ''}{formatCurrency(bc.revenueVariance)} variance
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* COGS Progress */}
+                        {bc.cogsTarget > 0 && (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">COGS</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{formatCurrency(bc.cogsActual)}</span>
+                                <span className="text-muted-foreground">/ {formatCurrency(bc.cogsTarget)}</span>
+                                <Badge variant={bc.cogsPercent <= 100 ? 'default' : 'destructive'}>
+                                  {bc.cogsPercent.toFixed(0)}%
+                                </Badge>
+                              </div>
+                            </div>
+                            <Progress 
+                              value={Math.min(bc.cogsPercent, 100)} 
+                              className="h-2"
+                            />
+                            <div className="flex items-center gap-1 text-xs">
+                              {bc.cogsVariance <= 0 ? (
+                                <Check className="h-3 w-3 text-green-500" />
+                              ) : (
+                                <X className="h-3 w-3 text-red-500" />
+                              )}
+                              <span className={bc.cogsVariance <= 0 ? 'text-green-600' : 'text-red-600'}>
+                                {bc.cogsVariance > 0 ? '+' : ''}{formatCurrency(bc.cogsVariance)} {bc.cogsVariance <= 0 ? 'under budget' : 'over budget'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Profit Progress */}
+                        {bc.profitTarget > 0 && (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Profit</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-green-600">{formatCurrency(bc.profitActual)}</span>
+                                <span className="text-muted-foreground">/ {formatCurrency(bc.profitTarget)}</span>
+                                <Badge variant={bc.profitPercent >= 90 ? 'default' : bc.profitPercent >= 70 ? 'secondary' : 'destructive'}>
+                                  {bc.profitPercent.toFixed(0)}%
+                                </Badge>
+                              </div>
+                            </div>
+                            <Progress 
+                              value={Math.min(bc.profitPercent, 100)} 
+                              className={cn("h-2", bc.profitPercent >= 100 && "bg-green-200")}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {/* Summary Card */}
+                    <Card className="bg-muted/50">
+                      <CardContent className="pt-6">
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground mb-1">Total Revenue Target</p>
+                            <p className="text-2xl font-bold">
+                              {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.revenueTarget, 0))}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Actual: {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.revenueActual, 0))}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground mb-1">Total COGS Budget</p>
+                            <p className="text-2xl font-bold">
+                              {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.cogsTarget, 0))}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Actual: {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.cogsActual, 0))}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-muted-foreground mb-1">Total Profit Target</p>
+                            <p className="text-2xl font-bold text-green-600">
+                              {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.profitTarget, 0))}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Actual: {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.profitActual, 0))}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 )}
               </CardContent>

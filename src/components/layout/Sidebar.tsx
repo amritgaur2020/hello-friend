@@ -110,6 +110,7 @@ const adminItems: NavItem[] = [
   { label: 'Roles', icon: UserCog, href: '/admin/roles', module: 'roles', adminOnly: true },
   { label: 'Settings', icon: Settings, href: '/admin/settings', module: 'settings', adminOnly: true },
   { label: 'Activity Log', icon: BarChart3, href: '/admin/logs', module: 'activity_logs', adminOnly: true },
+  { label: 'P/L Report', icon: BarChart3, href: '/admin/pl-report', module: 'pl_report', adminOnly: true },
 ];
 
 export function Sidebar() {

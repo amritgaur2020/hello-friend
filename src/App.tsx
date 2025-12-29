@@ -25,6 +25,7 @@ import Services from "./pages/admin/Services";
 import TaxSettings from "./pages/admin/TaxSettings";
 import RoomTypes from "./pages/admin/RoomTypes";
 import RoleManagement from "./pages/admin/RoleManagement";
+import HotelPLReport from "./pages/admin/HotelPLReport";
 import NotFound from "./pages/NotFound";
 
 // Bar Pages
@@ -97,6 +98,7 @@ const App = () => (
               <Route path="/admin/roles" element={<RoleManagement />} />
               <Route path="/admin/settings" element={<AdminSettings />} />
               <Route path="/admin/logs" element={<ActivityLogs />} />
+              <Route path="/admin/pl-report" element={<HotelPLReport />} />
               {/* Bar Routes */}
               <Route path="/bar" element={<BarDashboard />} />
               <Route path="/bar/dashboard" element={<BarDashboard />} />
