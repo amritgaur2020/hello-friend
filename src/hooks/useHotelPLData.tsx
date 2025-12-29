@@ -48,6 +48,34 @@ export interface LowStockItem {
   percentBelowMin: number;
 }
 
+export interface COGSBreakdownItem {
+  menuItemId: string;
+  menuItemName: string;
+  department: string;
+  quantity: number;
+  ingredients: {
+    name: string;
+    inventoryId: string;
+    quantityUsed: number;
+    unit: string;
+    costPerUnit: number;
+    totalCost: number;
+  }[];
+  totalCOGS: number;
+  isEstimated: boolean;
+}
+
+export interface COGSDebugData {
+  department: string;
+  displayName: string;
+  orderCount: number;
+  orderItemCount: number;
+  recipeBasedItems: number;
+  estimatedItems: number;
+  totalCOGS: number;
+  breakdown: COGSBreakdownItem[];
+}
+
 export interface HotelPLSummary {
   totalRevenue: number;
   totalCOGS: number;
@@ -70,6 +98,7 @@ export interface UseHotelPLDataResult {
   departmentDailyData: Map<string, DailyData[]>;
   comparison: PLComparison | null;
   frontOffice: FrontOfficeData;
+  cogsDebugData: COGSDebugData[];
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
@@ -266,6 +295,7 @@ export function useHotelPLData({
         departmentDailyData: new Map(),
         comparison: null,
         frontOffice: defaultFrontOffice,
+        cogsDebugData: [],
       };
     }
 
@@ -489,6 +519,117 @@ export function useHotelPLData({
       ...collectLowStockItems(rawData.housekeepingInventory, 'Housekeeping'),
     ].sort((a, b) => b.percentBelowMin - a.percentBelowMin);
 
+    // Calculate COGS debug data with detailed breakdown
+    const calculateCOGSDebug = (
+      orders: any[],
+      orderItems: any[],
+      menuItems: any[],
+      inventory: any[],
+      dept: string
+    ): COGSDebugData => {
+      const config = DEPARTMENT_CONFIG[dept as keyof typeof DEPARTMENT_CONFIG] || { displayName: dept };
+      const menuItemMap = new Map<string, any>();
+      menuItems.forEach(item => menuItemMap.set(item.id, item));
+      const inventoryMap = new Map<string, any>();
+      inventory.forEach(item => inventoryMap.set(item.id, item));
+
+      const orderIds = new Set(orders.map(o => o.id));
+      const relevantOrderItems = orderItems.filter(item => orderIds.has(item.order_id));
+
+      let recipeBasedItems = 0;
+      let estimatedItems = 0;
+      let totalCOGS = 0;
+      const breakdown: COGSBreakdownItem[] = [];
+
+      // Group order items by menu item
+      const menuItemGroups = new Map<string, { item: any; orderItems: any[] }>();
+      relevantOrderItems.forEach(orderItem => {
+        const menuItemId = orderItem.menu_item_id || 'unknown';
+        if (!menuItemGroups.has(menuItemId)) {
+          menuItemGroups.set(menuItemId, { item: menuItemMap.get(menuItemId), orderItems: [] });
+        }
+        menuItemGroups.get(menuItemId)!.orderItems.push(orderItem);
+      });
+
+      menuItemGroups.forEach((group, menuItemId) => {
+        const menuItem = group.item;
+        const totalQuantity = group.orderItems.reduce((sum, oi) => sum + (oi.quantity || 1), 0);
+        
+        if (menuItem?.ingredients && Array.isArray(menuItem.ingredients) && menuItem.ingredients.length > 0) {
+          recipeBasedItems += group.orderItems.length;
+          const ingredients = menuItem.ingredients as RecipeIngredient[];
+          
+          const ingredientDetails: COGSBreakdownItem['ingredients'] = [];
+          let itemCOGS = 0;
+
+          ingredients.forEach(ingredient => {
+            const inventoryItem = inventoryMap.get(ingredient.inventory_id);
+            if (inventoryItem) {
+              const costPerPortion = calculateIngredientCost(
+                ingredient.quantity || 0,
+                ingredient.unit || 'pcs',
+                inventoryItem.cost_price || 0,
+                inventoryItem.unit || 'pcs'
+              );
+              const totalCost = costPerPortion * totalQuantity;
+              itemCOGS += totalCost;
+
+              ingredientDetails.push({
+                name: inventoryItem.name,
+                inventoryId: ingredient.inventory_id,
+                quantityUsed: (ingredient.quantity || 0) * totalQuantity,
+                unit: ingredient.unit || 'pcs',
+                costPerUnit: inventoryItem.cost_price || 0,
+                totalCost: Math.round(totalCost * 100) / 100,
+              });
+            }
+          });
+
+          totalCOGS += itemCOGS;
+          breakdown.push({
+            menuItemId,
+            menuItemName: menuItem?.name || 'Unknown Item',
+            department: dept,
+            quantity: totalQuantity,
+            ingredients: ingredientDetails,
+            totalCOGS: Math.round(itemCOGS * 100) / 100,
+            isEstimated: false,
+          });
+        } else {
+          estimatedItems += group.orderItems.length;
+          const estimatedCost = group.orderItems.reduce((sum, oi) => sum + ((oi.total_price || 0) * 0.30), 0);
+          totalCOGS += estimatedCost;
+          
+          breakdown.push({
+            menuItemId,
+            menuItemName: menuItem?.name || group.orderItems[0]?.item_name || 'Unknown Item',
+            department: dept,
+            quantity: totalQuantity,
+            ingredients: [],
+            totalCOGS: Math.round(estimatedCost * 100) / 100,
+            isEstimated: true,
+          });
+        }
+      });
+
+      return {
+        department: dept,
+        displayName: config.displayName,
+        orderCount: orders.length,
+        orderItemCount: relevantOrderItems.length,
+        recipeBasedItems,
+        estimatedItems,
+        totalCOGS: Math.round(totalCOGS * 100) / 100,
+        breakdown: breakdown.sort((a, b) => b.totalCOGS - a.totalCOGS),
+      };
+    };
+
+    const cogsDebugData: COGSDebugData[] = [
+      calculateCOGSDebug(rawData.barOrders, rawData.barOrderItems, rawData.barMenu, rawData.barInventory, 'bar'),
+      calculateCOGSDebug(rawData.restaurantOrders, rawData.restaurantOrderItems, rawData.restaurantMenu, rawData.restaurantInventory, 'restaurant'),
+      calculateCOGSDebug(rawData.kitchenOrders, rawData.kitchenOrderItems, rawData.kitchenMenu, rawData.kitchenInventory, 'kitchen'),
+    ].filter(d => d.orderCount > 0);
+
     // Calculate summary with actual tax from departments
     const totalRevenue = departments.reduce((sum, d) => sum + d.revenue, 0);
     const totalCOGS = departments.reduce((sum, d) => sum + d.cogs, 0);
@@ -574,6 +715,7 @@ export function useHotelPLData({
       departmentDailyData,
       comparison,
       frontOffice: frontOfficeResult.data,
+      cogsDebugData,
     };
   }, [rawData, forecastDays]);
 
