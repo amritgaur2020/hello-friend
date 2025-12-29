@@ -4,7 +4,7 @@ import { useHotelSettings } from '@/hooks/useHotelSettings';
 import { useHotelPLData, DepartmentPLData } from '@/hooks/useHotelPLData';
 import { useBudgetTargets, calculateBudgetComparisons } from '@/hooks/useBudgetTargets';
 import { useExpenseTracking, EXPENSE_CATEGORIES, DEPARTMENTS_LIST, Expense } from '@/hooks/useExpenseTracking';
-import { exportToPDF, exportToExcel } from '@/utils/plReportExport';
+import { exportToPDF, exportToExcel, exportDepartmentBreakdownToPDF, exportDepartmentBreakdownToExcel } from '@/utils/plReportExport';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AccessDenied } from '@/components/shared/AccessDenied';
@@ -1111,6 +1111,42 @@ export default function HotelPLReport() {
                     {/* Summary Card with Breakdown */}
                     <Card className="bg-muted/50">
                       <CardContent className="pt-6 space-y-6">
+                        {/* Export Buttons */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4" />
+                            Summary & Breakdown
+                          </p>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Download className="h-4 w-4 mr-2" />
+                                Export Breakdown
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => exportDepartmentBreakdownToPDF({
+                                budgetComparisons,
+                                dateRange: { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
+                                hotelName: settings?.hotel_name,
+                                currencySymbol,
+                              })}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Download PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => exportDepartmentBreakdownToExcel({
+                                budgetComparisons,
+                                dateRange: { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
+                                hotelName: settings?.hotel_name,
+                                currencySymbol,
+                              })}>
+                                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                                Download Excel
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        
                         {/* Totals Row */}
                         <div className="grid gap-4 md:grid-cols-3">
                           {(() => {
