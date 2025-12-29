@@ -4,6 +4,8 @@ import { startOfDay, endOfDay, format, subDays } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
 import { PLMetrics, calculatePLMetrics, comparePLMetrics, getComparisonPeriodDates, PLComparison } from './usePLCostCalculation';
 import { calculateForecast, aggregateDailyData, Forecast, DailyData } from '@/utils/forecastingUtils';
+import { calculateIngredientCost } from '@/constants/inventoryUnits';
+import { RecipeIngredient } from '@/types/department';
 
 export interface DepartmentPLData {
   department: string;
@@ -11,7 +13,9 @@ export interface DepartmentPLData {
   color: string;
   revenue: number;
   cogs: number;
+  tax: number;
   grossProfit: number;
+  netProfit: number;
   margin: number;
   orderCount: number;
   avgOrderValue: number;
@@ -47,6 +51,7 @@ export interface LowStockItem {
 export interface HotelPLSummary {
   totalRevenue: number;
   totalCOGS: number;
+  totalTax: number;
   grossProfit: number;
   grossMargin: number;
   netProfit: number;
@@ -108,6 +113,12 @@ export function useHotelPLData({
     kitchenInventory: any[];
     spaInventory: any[];
     housekeepingInventory: any[];
+    barMenu: any[];
+    restaurantMenu: any[];
+    kitchenMenu: any[];
+    barOrderItems: any[];
+    restaurantOrderItems: any[];
+    kitchenOrderItems: any[];
     previousBarOrders: any[];
     previousRestaurantOrders: any[];
     previousKitchenOrders: any[];
@@ -144,6 +155,12 @@ export function useHotelPLData({
         kitchenInventoryRes,
         spaInventoryRes,
         housekeepingInventoryRes,
+        barMenuRes,
+        restaurantMenuRes,
+        kitchenMenuRes,
+        barOrderItemsRes,
+        restaurantOrderItemsRes,
+        kitchenOrderItemsRes,
         prevBarOrdersRes,
         prevRestaurantOrdersRes,
         prevKitchenOrdersRes,
@@ -151,7 +168,7 @@ export function useHotelPLData({
       ] = await Promise.all([
         // Current period orders
         supabase.from('bar_orders').select('*').gte('created_at', startStr).lte('created_at', endStr),
-        supabase.from('restaurant_orders').select('*, restaurant_order_items(*)').gte('created_at', startStr).lte('created_at', endStr),
+        supabase.from('restaurant_orders').select('*').gte('created_at', startStr).lte('created_at', endStr),
         supabase.from('kitchen_orders').select('*').gte('created_at', startStr).lte('created_at', endStr),
         supabase.from('spa_bookings').select('*').gte('created_at', startStr).lte('created_at', endStr).eq('status', 'completed'),
         supabase.from('billing_items').select('*, billing!inner(status)').eq('billing.status', 'paid'),
@@ -165,6 +182,14 @@ export function useHotelPLData({
         supabase.from('kitchen_inventory').select('*'),
         supabase.from('spa_inventory').select('*'),
         supabase.from('housekeeping_inventory').select('*'),
+        // Menu items for COGS calculation
+        supabase.from('bar_menu_items').select('*'),
+        supabase.from('restaurant_menu_items').select('*'),
+        supabase.from('kitchen_menu_items').select('*'),
+        // Order items for COGS calculation
+        supabase.from('bar_order_items').select('*'),
+        supabase.from('restaurant_order_items').select('*'),
+        supabase.from('kitchen_order_items').select('*'),
         // Previous period orders for comparison
         supabase.from('bar_orders').select('*').gte('created_at', compStartStr).lte('created_at', compEndStr),
         supabase.from('restaurant_orders').select('*').gte('created_at', compStartStr).lte('created_at', compEndStr),
@@ -186,6 +211,12 @@ export function useHotelPLData({
         kitchenInventory: kitchenInventoryRes.data || [],
         spaInventory: spaInventoryRes.data || [],
         housekeepingInventory: housekeepingInventoryRes.data || [],
+        barMenu: barMenuRes.data || [],
+        restaurantMenu: restaurantMenuRes.data || [],
+        kitchenMenu: kitchenMenuRes.data || [],
+        barOrderItems: barOrderItemsRes.data || [],
+        restaurantOrderItems: restaurantOrderItemsRes.data || [],
+        kitchenOrderItems: kitchenOrderItemsRes.data || [],
         previousBarOrders: prevBarOrdersRes.data || [],
         previousRestaurantOrders: prevRestaurantOrdersRes.data || [],
         previousKitchenOrders: prevKitchenOrdersRes.data || [],
@@ -226,7 +257,7 @@ export function useHotelPLData({
     
     if (!rawData) {
       return {
-        summary: { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossMargin: 0, netProfit: 0, netMargin: 0, totalOrders: 0, avgOrderValue: 0 },
+        summary: { totalRevenue: 0, totalCOGS: 0, totalTax: 0, grossProfit: 0, grossMargin: 0, netProfit: 0, netMargin: 0, totalOrders: 0, avgOrderValue: 0 },
         departments: [],
         inventoryValuation: [],
         totalInventoryValue: 0,
@@ -238,13 +269,74 @@ export function useHotelPLData({
       };
     }
 
-    // Calculate department metrics
-    const calculateDeptMetrics = (orders: any[], dept: string, prevOrders: any[]): DepartmentPLData => {
+    // Helper function to calculate COGS from order items using actual recipe costs
+    const calculateActualCOGS = (
+      orderItems: any[],
+      menuItems: any[],
+      inventory: any[],
+      orderIds: Set<string>
+    ): number => {
+      const menuItemMap = new Map<string, any>();
+      menuItems.forEach(item => menuItemMap.set(item.id, item));
+
+      const inventoryMap = new Map<string, any>();
+      inventory.forEach(item => inventoryMap.set(item.id, item));
+
+      let totalCOGS = 0;
+
+      const relevantOrderItems = orderItems.filter(item => orderIds.has(item.order_id));
+
+      relevantOrderItems.forEach(orderItem => {
+        const menuItem = orderItem.menu_item_id ? menuItemMap.get(orderItem.menu_item_id) : null;
+
+        if (menuItem?.ingredients && Array.isArray(menuItem.ingredients) && menuItem.ingredients.length > 0) {
+          // Calculate cost based on recipe with proper unit conversion
+          const ingredients = menuItem.ingredients as RecipeIngredient[];
+          
+          ingredients.forEach(ingredient => {
+            const inventoryItem = inventoryMap.get(ingredient.inventory_id);
+            if (inventoryItem) {
+              const ingredientCost = calculateIngredientCost(
+                ingredient.quantity || 0,
+                ingredient.unit || 'pcs',
+                inventoryItem.cost_price || 0,
+                inventoryItem.unit || 'pcs'
+              ) * (orderItem.quantity || 1);
+              
+              totalCOGS += ingredientCost;
+            }
+          });
+        } else {
+          // Fallback: Estimate cost as 30% of selling price for items without recipes
+          const estimatedCost = (orderItem.total_price || 0) * 0.30;
+          totalCOGS += estimatedCost;
+        }
+      });
+
+      return totalCOGS;
+    };
+
+    // Calculate department metrics with actual COGS
+    const calculateDeptMetrics = (
+      orders: any[], 
+      dept: string, 
+      prevOrders: any[],
+      orderItems: any[],
+      menuItems: any[],
+      inventory: any[]
+    ): DepartmentPLData => {
       const config = DEPARTMENT_CONFIG[dept as keyof typeof DEPARTMENT_CONFIG] || { displayName: dept, color: 'hsl(var(--muted))' };
       const revenue = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
-      const cogs = revenue * 0.3; // Estimate 30% COGS
+      const tax = orders.reduce((sum, o) => sum + (o.tax_amount || 0), 0);
+      
+      // Calculate actual COGS using recipe data
+      const orderIds = new Set(orders.map(o => o.id));
+      const cogs = calculateActualCOGS(orderItems, menuItems, inventory, orderIds);
+      
       const prevRevenue = prevOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
       const trend = prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+      const grossProfit = revenue - cogs;
+      const netProfit = grossProfit - tax;
 
       return {
         department: dept,
@@ -252,8 +344,10 @@ export function useHotelPLData({
         color: config.color,
         revenue,
         cogs,
-        grossProfit: revenue - cogs,
-        margin: revenue > 0 ? ((revenue - cogs) / revenue) * 100 : 0,
+        tax,
+        grossProfit,
+        netProfit,
+        margin: revenue > 0 ? (grossProfit / revenue) * 100 : 0,
         orderCount: orders.length,
         avgOrderValue: orders.length > 0 ? revenue / orders.length : 0,
         trend,
@@ -264,9 +358,12 @@ export function useHotelPLData({
     const calculateSpaMetrics = (bookings: any[], prevBookings: any[]): DepartmentPLData => {
       const config = DEPARTMENT_CONFIG.spa;
       const revenue = bookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+      const tax = bookings.reduce((sum, b) => sum + (b.tax_amount || 0), 0);
       const cogs = revenue * 0.2; // Lower COGS for spa services
       const prevRevenue = prevBookings.reduce((sum, b) => sum + (b.total_amount || 0), 0);
       const trend = prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+      const grossProfit = revenue - cogs;
+      const netProfit = grossProfit - tax;
 
       return {
         department: 'spa',
@@ -274,8 +371,10 @@ export function useHotelPLData({
         color: config.color,
         revenue,
         cogs,
-        grossProfit: revenue - cogs,
-        margin: revenue > 0 ? ((revenue - cogs) / revenue) * 100 : 0,
+        tax,
+        grossProfit,
+        netProfit,
+        margin: revenue > 0 ? (grossProfit / revenue) * 100 : 0,
         orderCount: bookings.length,
         avgOrderValue: bookings.length > 0 ? revenue / bookings.length : 0,
         trend,
@@ -290,6 +389,7 @@ export function useHotelPLData({
       
       // Calculate revenue from billing (room charges)
       const revenue = rawData.billing.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+      const tax = rawData.billing.reduce((sum, b) => sum + (b.tax_amount || 0), 0);
       
       // Occupancy rate calculation
       const totalRooms = rawData.rooms.length || 1;
@@ -314,7 +414,9 @@ export function useHotelPLData({
           color: config.color,
           revenue,
           cogs: 0,
+          tax,
           grossProfit: revenue,
+          netProfit: revenue - tax,
           margin: 100,
           orderCount: checkIns,
           avgOrderValue: checkIns > 0 ? revenue / checkIns : 0,
@@ -325,11 +427,11 @@ export function useHotelPLData({
     
     const frontOfficeResult = calculateFrontOfficeMetrics();
 
-    // Build departments array
+    // Build departments array with actual COGS calculation
     const departments: DepartmentPLData[] = [
-      calculateDeptMetrics(rawData.barOrders, 'bar', rawData.previousBarOrders),
-      calculateDeptMetrics(rawData.restaurantOrders, 'restaurant', rawData.previousRestaurantOrders),
-      calculateDeptMetrics(rawData.kitchenOrders, 'kitchen', rawData.previousKitchenOrders),
+      calculateDeptMetrics(rawData.barOrders, 'bar', rawData.previousBarOrders, rawData.barOrderItems, rawData.barMenu, rawData.barInventory),
+      calculateDeptMetrics(rawData.restaurantOrders, 'restaurant', rawData.previousRestaurantOrders, rawData.restaurantOrderItems, rawData.restaurantMenu, rawData.restaurantInventory),
+      calculateDeptMetrics(rawData.kitchenOrders, 'kitchen', rawData.previousKitchenOrders, rawData.kitchenOrderItems, rawData.kitchenMenu, rawData.kitchenInventory),
       calculateSpaMetrics(rawData.spaBookings, rawData.previousSpaBookings),
       frontOfficeResult.deptData,
     ].filter(d => d.revenue > 0 || d.orderCount > 0);
@@ -386,10 +488,12 @@ export function useHotelPLData({
       ...collectLowStockItems(rawData.housekeepingInventory, 'Housekeeping'),
     ].sort((a, b) => b.percentBelowMin - a.percentBelowMin);
 
-    // Calculate summary
+    // Calculate summary with actual tax from departments
     const totalRevenue = departments.reduce((sum, d) => sum + d.revenue, 0);
     const totalCOGS = departments.reduce((sum, d) => sum + d.cogs, 0);
+    const totalTax = departments.reduce((sum, d) => sum + d.tax, 0);
     const grossProfit = totalRevenue - totalCOGS;
+    const netProfit = grossProfit - totalTax;
     const totalOrders = departments.reduce((sum, d) => sum + d.orderCount, 0);
 
     const summary: HotelPLSummary = {
@@ -397,10 +501,11 @@ export function useHotelPLData({
       totalCOGS,
       grossProfit,
       grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
-      netProfit: grossProfit * 0.85, // Estimate 15% overhead
-      netMargin: totalRevenue > 0 ? ((grossProfit * 0.85) / totalRevenue) * 100 : 0,
+      netProfit,
+      netMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0,
       totalOrders,
       avgOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+      totalTax,
     };
 
     // Aggregate daily data for forecasting
@@ -421,14 +526,14 @@ export function useHotelPLData({
     departmentDailyData.set('kitchen', aggregateDailyData(rawData.kitchenOrders.map(o => ({ created_at: o.created_at, total_amount: o.total_amount }))));
     departmentDailyData.set('spa', aggregateDailyData(rawData.spaBookings.map(b => ({ created_at: b.created_at, total_amount: b.total_amount }))));
 
-    // Calculate comparison
+    // Calculate comparison using actual values
     const currentMetrics: PLMetrics = {
       revenue: totalRevenue,
       cogs: totalCOGS,
       grossProfit,
-      tax: totalRevenue * 0.18,
+      tax: totalTax,
       discount: 0,
-      netProfit: summary.netProfit,
+      netProfit,
       profitMargin: summary.netMargin,
       orderCount: totalOrders,
     };
