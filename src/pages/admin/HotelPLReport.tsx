@@ -459,7 +459,7 @@ export default function HotelPLReport() {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4">
             {/* P&L Waterfall - Full Width */}
-            <Card className="border-2 border-primary/20">
+            <Card className="border-0 shadow-xl bg-gradient-to-br from-card via-card to-muted/30 overflow-hidden">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <LineChart className="h-5 w-5" />
@@ -477,10 +477,13 @@ export default function HotelPLReport() {
                     {/* Waterfall Flow */}
                     <div className="grid grid-cols-1 md:grid-cols-7 gap-2 items-stretch">
                       {/* Revenue */}
-                      <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg p-4 text-center">
-                        <div className="text-xs font-medium opacity-80 uppercase">Total Revenue</div>
-                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.totalRevenue)}</div>
-                        <div className="text-xs opacity-70">100%</div>
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(220,90%,56%)] to-[hsl(220,90%,65%)] rounded-2xl blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
+                        <div className="relative bg-gradient-to-br from-[hsl(220,90%,56%)] to-[hsl(220,90%,65%)] text-white rounded-2xl p-5 text-center shadow-lg border border-white/20 transform transition-transform group-hover:scale-[1.02]">
+                          <div className="text-[10px] font-bold tracking-widest opacity-90 uppercase mb-2">Total Revenue</div>
+                          <div className="text-2xl font-black tracking-tight">{formatCurrency(summary.totalRevenue)}</div>
+                          <div className="text-xs font-medium opacity-80 mt-1 bg-white/20 rounded-full px-2 py-0.5 inline-block">100%</div>
+                        </div>
                       </div>
 
                       {/* Minus Arrow */}
@@ -490,11 +493,14 @@ export default function HotelPLReport() {
                       </div>
 
                       {/* COGS */}
-                      <div className="bg-gradient-to-br from-red-400 to-red-500 text-white rounded-lg p-4 text-center">
-                        <div className="text-xs font-medium opacity-80 uppercase">COGS</div>
-                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.totalCOGS)}</div>
-                        <div className="text-xs opacity-70">
-                          {summary.totalRevenue > 0 ? ((summary.totalCOGS / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(0,75%,60%)] to-[hsl(0,75%,68%)] rounded-2xl blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
+                        <div className="relative bg-gradient-to-br from-[hsl(0,75%,60%)] to-[hsl(0,75%,68%)] text-white rounded-2xl p-5 text-center shadow-lg border border-white/20 transform transition-transform group-hover:scale-[1.02]">
+                          <div className="text-[10px] font-bold tracking-widest opacity-90 uppercase mb-2">COGS</div>
+                          <div className="text-2xl font-black tracking-tight">{formatCurrency(summary.totalCOGS)}</div>
+                          <div className="text-xs font-medium opacity-80 mt-1 bg-white/20 rounded-full px-2 py-0.5 inline-block">
+                            {summary.totalRevenue > 0 ? ((summary.totalCOGS / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                          </div>
                         </div>
                       </div>
 
@@ -505,10 +511,13 @@ export default function HotelPLReport() {
                       </div>
 
                       {/* Gross Profit */}
-                      <div className="bg-gradient-to-br from-green-400 to-green-500 text-white rounded-lg p-4 text-center">
-                        <div className="text-xs font-medium opacity-80 uppercase">Gross Profit</div>
-                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.grossProfit)}</div>
-                        <div className="text-xs opacity-70">{summary.grossMargin.toFixed(1)}% margin</div>
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(158,64%,52%)] to-[hsl(158,64%,62%)] rounded-2xl blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
+                        <div className="relative bg-gradient-to-br from-[hsl(158,64%,52%)] to-[hsl(158,64%,62%)] text-white rounded-2xl p-5 text-center shadow-lg border border-white/20 transform transition-transform group-hover:scale-[1.02]">
+                          <div className="text-[10px] font-bold tracking-widest opacity-90 uppercase mb-2">Gross Profit</div>
+                          <div className="text-2xl font-black tracking-tight">{formatCurrency(summary.grossProfit)}</div>
+                          <div className="text-xs font-medium opacity-80 mt-1 bg-white/20 rounded-full px-2 py-0.5 inline-block">{summary.grossMargin.toFixed(1)}% margin</div>
+                        </div>
                       </div>
 
                       {/* Minus Arrow */}
@@ -518,11 +527,14 @@ export default function HotelPLReport() {
                       </div>
 
                       {/* Tax */}
-                      <div className="bg-gradient-to-br from-orange-400 to-orange-500 text-white rounded-lg p-4 text-center">
-                        <div className="text-xs font-medium opacity-80 uppercase">Tax</div>
-                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.totalTax)}</div>
-                        <div className="text-xs opacity-70">
-                          {summary.totalRevenue > 0 ? ((summary.totalTax / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(33,90%,55%)] to-[hsl(33,90%,65%)] rounded-2xl blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
+                        <div className="relative bg-gradient-to-br from-[hsl(33,90%,55%)] to-[hsl(33,90%,65%)] text-white rounded-2xl p-5 text-center shadow-lg border border-white/20 transform transition-transform group-hover:scale-[1.02]">
+                          <div className="text-[10px] font-bold tracking-widest opacity-90 uppercase mb-2">Tax</div>
+                          <div className="text-2xl font-black tracking-tight">{formatCurrency(summary.totalTax)}</div>
+                          <div className="text-xs font-medium opacity-80 mt-1 bg-white/20 rounded-full px-2 py-0.5 inline-block">
+                            {summary.totalRevenue > 0 ? ((summary.totalTax / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -530,10 +542,13 @@ export default function HotelPLReport() {
                     {/* Second Row - Operating Profit to Net Profit */}
                     <div className="grid grid-cols-1 md:grid-cols-7 gap-2 items-stretch">
                       {/* Operating Profit */}
-                      <div className="bg-gradient-to-br from-teal-400 to-teal-500 text-white rounded-lg p-4 text-center md:col-start-1">
-                        <div className="text-xs font-medium opacity-80 uppercase">Operating Profit</div>
-                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.operatingProfit)}</div>
-                        <div className="text-xs opacity-70">{summary.operatingMargin.toFixed(1)}% margin</div>
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(262,83%,58%)] to-[hsl(262,83%,68%)] rounded-2xl blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
+                        <div className="relative bg-gradient-to-br from-[hsl(262,83%,58%)] to-[hsl(262,83%,68%)] text-white rounded-2xl p-5 text-center shadow-lg border border-white/20 transform transition-transform group-hover:scale-[1.02]">
+                          <div className="text-[10px] font-bold tracking-widest opacity-90 uppercase mb-2">Operating Profit</div>
+                          <div className="text-2xl font-black tracking-tight">{formatCurrency(summary.operatingProfit)}</div>
+                          <div className="text-xs font-medium opacity-80 mt-1 bg-white/20 rounded-full px-2 py-0.5 inline-block">{summary.operatingMargin.toFixed(1)}% margin</div>
+                        </div>
                       </div>
 
                       {/* Minus Arrow */}
@@ -543,11 +558,14 @@ export default function HotelPLReport() {
                       </div>
 
                       {/* Operating Expenses */}
-                      <div className="bg-gradient-to-br from-purple-400 to-purple-500 text-white rounded-lg p-4 text-center">
-                        <div className="text-xs font-medium opacity-80 uppercase">Operating Expenses</div>
-                        <div className="text-xl font-bold mt-1">{formatCurrency(totalExpenses)}</div>
-                        <div className="text-xs opacity-70">
-                          {summary.totalRevenue > 0 ? ((totalExpenses / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(280,70%,50%)] to-[hsl(280,70%,60%)] rounded-2xl blur-sm opacity-50 group-hover:opacity-70 transition-opacity" />
+                        <div className="relative bg-gradient-to-br from-[hsl(280,70%,50%)] to-[hsl(280,70%,60%)] text-white rounded-2xl p-5 text-center shadow-lg border border-white/20 transform transition-transform group-hover:scale-[1.02]">
+                          <div className="text-[10px] font-bold tracking-widest opacity-90 uppercase mb-2">Op. Expenses</div>
+                          <div className="text-2xl font-black tracking-tight">{formatCurrency(totalExpenses)}</div>
+                          <div className="text-xs font-medium opacity-80 mt-1 bg-white/20 rounded-full px-2 py-0.5 inline-block">
+                            {summary.totalRevenue > 0 ? ((totalExpenses / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                          </div>
                         </div>
                       </div>
 
@@ -558,15 +576,29 @@ export default function HotelPLReport() {
                       </div>
 
                       {/* Net Profit */}
-                      <div className={`rounded-lg p-4 text-center md:col-span-3 border-2 ${
-                        (summary.operatingProfit - totalExpenses) >= 0 
-                          ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white border-emerald-400' 
-                          : 'bg-gradient-to-br from-red-500 to-red-600 text-white border-red-400'
-                      }`}>
-                        <div className="text-xs font-medium opacity-80 uppercase">Net Profit (After All Expenses)</div>
-                        <div className="text-2xl font-bold mt-1">{formatCurrency(summary.operatingProfit - totalExpenses)}</div>
-                        <div className="text-sm opacity-80">
-                          {summary.totalRevenue > 0 ? (((summary.operatingProfit - totalExpenses) / summary.totalRevenue) * 100).toFixed(1) : 0}% Net Margin
+                      <div className={`relative group md:col-span-3`}>
+                        <div className={`absolute inset-0 rounded-2xl blur-sm opacity-60 group-hover:opacity-80 transition-opacity ${
+                          (summary.operatingProfit - totalExpenses) >= 0 
+                            ? 'bg-gradient-to-br from-[hsl(160,84%,39%)] to-[hsl(160,84%,50%)]' 
+                            : 'bg-gradient-to-br from-[hsl(0,84%,60%)] to-[hsl(0,84%,70%)]'
+                        }`} />
+                        <div className={`relative rounded-2xl p-6 text-center shadow-xl border-2 transform transition-transform group-hover:scale-[1.01] ${
+                          (summary.operatingProfit - totalExpenses) >= 0 
+                            ? 'bg-gradient-to-br from-[hsl(160,84%,39%)] to-[hsl(160,84%,50%)] text-white border-white/30' 
+                            : 'bg-gradient-to-br from-[hsl(0,84%,60%)] to-[hsl(0,84%,70%)] text-white border-white/30'
+                        }`}>
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            {(summary.operatingProfit - totalExpenses) >= 0 ? (
+                              <TrendingUp className="h-4 w-4" />
+                            ) : (
+                              <TrendingDown className="h-4 w-4" />
+                            )}
+                            <span className="text-[10px] font-bold tracking-widest opacity-90 uppercase">Net Profit (After All Expenses)</span>
+                          </div>
+                          <div className="text-3xl font-black tracking-tight">{formatCurrency(summary.operatingProfit - totalExpenses)}</div>
+                          <div className="text-sm font-semibold opacity-90 mt-2 bg-white/20 rounded-full px-4 py-1 inline-block">
+                            {summary.totalRevenue > 0 ? (((summary.operatingProfit - totalExpenses) / summary.totalRevenue) * 100).toFixed(1) : 0}% Net Margin
+                          </div>
                         </div>
                       </div>
                     </div>
