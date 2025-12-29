@@ -5,6 +5,7 @@ import { useHotelPLData, DepartmentPLData, COGSDebugData } from '@/hooks/useHote
 import { useBudgetTargets, calculateBudgetComparisons } from '@/hooks/useBudgetTargets';
 import { useExpenseTracking, EXPENSE_CATEGORIES, DEPARTMENTS_LIST, Expense } from '@/hooks/useExpenseTracking';
 import { exportToPDF, exportToExcel } from '@/utils/plReportExport';
+import { COGSSyncVerification } from '@/components/reports/COGSSyncVerification';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AccessDenied } from '@/components/shared/AccessDenied';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -830,6 +831,18 @@ export default function HotelPLReport() {
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* COGS Sync Verification with Department P/L Reports */}
+                    <COGSSyncVerification
+                      cogsDebugData={cogsDebugData}
+                      hotelPLCOGS={summary.totalCOGS}
+                      departmentPLCOGS={departments.map(d => ({
+                        department: d.department,
+                        displayName: d.displayName,
+                        cogs: d.cogs,
+                      }))}
+                      currencySymbol={currencySymbol}
+                    />
                   </div>
                 )}
               </CardContent>
