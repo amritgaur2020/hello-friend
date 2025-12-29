@@ -82,7 +82,9 @@ export interface HotelPLSummary {
   totalTax: number;
   grossProfit: number;
   grossMargin: number;
-  netProfit: number;
+  operatingProfit: number; // Gross Profit - Tax (before operating expenses)
+  operatingMargin: number;
+  netProfit: number; // Operating Profit - Operating Expenses (final profit)
   netMargin: number;
   totalOrders: number;
   avgOrderValue: number;
@@ -286,7 +288,7 @@ export function useHotelPLData({
     
     if (!rawData) {
       return {
-        summary: { totalRevenue: 0, totalCOGS: 0, totalTax: 0, grossProfit: 0, grossMargin: 0, netProfit: 0, netMargin: 0, totalOrders: 0, avgOrderValue: 0 },
+        summary: { totalRevenue: 0, totalCOGS: 0, totalTax: 0, grossProfit: 0, grossMargin: 0, operatingProfit: 0, operatingMargin: 0, netProfit: 0, netMargin: 0, totalOrders: 0, avgOrderValue: 0 },
         departments: [],
         inventoryValuation: [],
         totalInventoryValue: 0,
@@ -635,16 +637,20 @@ export function useHotelPLData({
     const totalCOGS = departments.reduce((sum, d) => sum + d.cogs, 0);
     const totalTax = departments.reduce((sum, d) => sum + d.tax, 0);
     const grossProfit = totalRevenue - totalCOGS;
-    const netProfit = grossProfit - totalTax;
+    const operatingProfit = grossProfit - totalTax; // Before operating expenses
     const totalOrders = departments.reduce((sum, d) => sum + d.orderCount, 0);
 
+    // Note: netProfit will be calculated in the component by subtracting operating expenses
+    // This hook doesn't have access to useExpenseTracking, so we provide operatingProfit as the base
     const summary: HotelPLSummary = {
       totalRevenue,
       totalCOGS,
       grossProfit,
       grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
-      netProfit,
-      netMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0,
+      operatingProfit,
+      operatingMargin: totalRevenue > 0 ? (operatingProfit / totalRevenue) * 100 : 0,
+      netProfit: operatingProfit, // Will be adjusted in UI with expenses
+      netMargin: totalRevenue > 0 ? (operatingProfit / totalRevenue) * 100 : 0,
       totalOrders,
       avgOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
       totalTax,
@@ -675,8 +681,8 @@ export function useHotelPLData({
       grossProfit,
       tax: totalTax,
       discount: 0,
-      netProfit,
-      profitMargin: summary.netMargin,
+      netProfit: operatingProfit,
+      profitMargin: summary.operatingMargin,
       orderCount: totalOrders,
     };
 
