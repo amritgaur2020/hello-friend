@@ -1666,21 +1666,21 @@ export default function HotelPLReport() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => exportDepartmentBreakdownToPDF({
-                                budgetComparisons,
-                                dateRange: { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
-                                hotelName: settings?.hotel_name,
+                              <DropdownMenuItem onClick={() => exportDepartmentBreakdownToPDF(
+                                departments,
+                                { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
+                                settings?.hotel_name || 'Hotel',
                                 currencySymbol,
-                              })}>
+                              )}>
                                 <FileText className="h-4 w-4 mr-2" />
                                 Download PDF
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => exportDepartmentBreakdownToExcel({
-                                budgetComparisons,
-                                dateRange: { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
-                                hotelName: settings?.hotel_name,
+                              <DropdownMenuItem onClick={() => exportDepartmentBreakdownToExcel(
+                                departments,
+                                { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
+                                settings?.hotel_name || 'Hotel',
                                 currencySymbol,
-                              })}>
+                              )}>
                                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                                 Download Excel
                               </DropdownMenuItem>
