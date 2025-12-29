@@ -99,6 +99,24 @@
     --chart-5: 340 75% 55%;  /* Pink */
     --chart-6: 45 93% 50%;   /* Yellow */
     --chart-7: 174 72% 45%;  /* Teal */
+
+    /* P&L Waterfall colors - Professional gradient palette */
+    --waterfall-revenue: 220 90% 56%;
+    --waterfall-revenue-light: 220 90% 65%;
+    --waterfall-cogs: 0 75% 60%;
+    --waterfall-cogs-light: 0 75% 68%;
+    --waterfall-gross: 158 64% 52%;
+    --waterfall-gross-light: 158 64% 62%;
+    --waterfall-tax: 33 90% 55%;
+    --waterfall-tax-light: 33 90% 65%;
+    --waterfall-operating: 262 83% 58%;
+    --waterfall-operating-light: 262 83% 68%;
+    --waterfall-expenses: 280 70% 50%;
+    --waterfall-expenses-light: 280 70% 60%;
+    --waterfall-net-positive: 160 84% 39%;
+    --waterfall-net-positive-light: 160 84% 50%;
+    --waterfall-net-negative: 0 84% 60%;
+    --waterfall-net-negative-light: 0 84% 70%;
   }
 
   .dark {
@@ -169,6 +187,24 @@
     --chart-5: 340 75% 60%;  /* Pink */
     --chart-6: 45 93% 55%;   /* Yellow */
     --chart-7: 174 72% 50%;  /* Teal */
+
+    /* P&L Waterfall colors - Professional gradient palette (dark mode) */
+    --waterfall-revenue: 220 90% 60%;
+    --waterfall-revenue-light: 220 90% 70%;
+    --waterfall-cogs: 0 75% 55%;
+    --waterfall-cogs-light: 0 75% 65%;
+    --waterfall-gross: 158 64% 48%;
+    --waterfall-gross-light: 158 64% 58%;
+    --waterfall-tax: 33 90% 50%;
+    --waterfall-tax-light: 33 90% 60%;
+    --waterfall-operating: 262 83% 55%;
+    --waterfall-operating-light: 262 83% 65%;
+    --waterfall-expenses: 280 70% 55%;
+    --waterfall-expenses-light: 280 70% 65%;
+    --waterfall-net-positive: 160 84% 42%;
+    --waterfall-net-positive-light: 160 84% 55%;
+    --waterfall-net-negative: 0 84% 55%;
+    --waterfall-net-negative-light: 0 84% 65%;
   }
 }
 
