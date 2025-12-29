@@ -6,6 +6,7 @@ import { useBudgetTargets, calculateBudgetComparisons } from '@/hooks/useBudgetT
 import { useExpenseTracking, EXPENSE_CATEGORIES, DEPARTMENTS_LIST, Expense } from '@/hooks/useExpenseTracking';
 import { useExpenseBudgets, EXPENSE_CATEGORY_LABELS } from '@/hooks/useExpenseBudgets';
 import { exportToPDF, exportToExcel, exportDepartmentBreakdownToPDF, exportDepartmentBreakdownToExcel, exportTaxFilingReport } from '@/utils/plReportExport';
+import { ComparativePLReport } from '@/components/reports/ComparativePLReport';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AccessDenied } from '@/components/shared/AccessDenied';
@@ -553,15 +554,20 @@ export default function HotelPLReport() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
+            <TabsTrigger value="comparative">YoY/QoQ</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="budgets">Budgets</TabsTrigger>
             <TabsTrigger value="comparison">Comparison</TabsTrigger>
             <TabsTrigger value="forecasting">Forecasting</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="comparative" className="space-y-6">
+            <ComparativePLReport />
+          </TabsContent>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
