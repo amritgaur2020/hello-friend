@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useHotelSettings } from '@/hooks/useHotelSettings';
 import { useHotelPLData, DepartmentPLData } from '@/hooks/useHotelPLData';
 import { useBudgetTargets, calculateBudgetComparisons } from '@/hooks/useBudgetTargets';
-import { useExpenseTracking, EXPENSE_CATEGORIES, Expense } from '@/hooks/useExpenseTracking';
+import { useExpenseTracking, EXPENSE_CATEGORIES, DEPARTMENTS_LIST, Expense } from '@/hooks/useExpenseTracking';
 import { exportToPDF, exportToExcel } from '@/utils/plReportExport';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AccessDenied } from '@/components/shared/AccessDenied';
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar } from '@/components/ui/calendar';
@@ -47,6 +48,7 @@ import {
   Receipt,
   Users,
   Trash2,
+  Repeat,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -106,22 +108,45 @@ export default function HotelPLReport() {
   });
 
   // Expense tracking
-  const { expenses, summary: expenseSummary, addExpense, deleteExpense, getExpensesByDateRange } = useExpenseTracking();
+  const { expenses, summary: expenseSummary, departmentSummaries, addExpense, deleteExpense, getExpensesByDateRange, getExpensesByDepartment, generateRecurringExpenses } = useExpenseTracking();
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
-  const [newExpense, setNewExpense] = useState({ category: 'utilities' as const, description: '', amount: '', date: format(new Date(), 'yyyy-MM-dd'), recurring: false });
+  const [newExpense, setNewExpense] = useState({ 
+    category: 'utilities' as const, 
+    description: '', 
+    amount: '', 
+    date: format(new Date(), 'yyyy-MM-dd'), 
+    recurring: false,
+    recurringFrequency: 'monthly' as 'monthly' | 'quarterly' | 'yearly',
+    department: 'general' as string,
+  });
   
   const periodExpenses = getExpensesByDateRange(dateRange?.from || startDate, dateRange?.to || endDate);
   const totalExpenses = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  // Calculate department expense allocations for the selected period
+  const periodDepartmentExpenses = DEPARTMENTS_LIST.map(dept => {
+    const deptExpenses = periodExpenses.filter(e => e.department === dept.value);
+    return {
+      department: dept.value,
+      displayName: dept.label,
+      total: deptExpenses.reduce((sum, e) => sum + e.amount, 0),
+      expenses: deptExpenses,
+    };
+  }).filter(d => d.total > 0);
 
   const handleAddExpense = () => {
     if (!newExpense.description || !newExpense.amount) {
       toast({ title: 'Error', description: 'Please fill all fields', variant: 'destructive' });
       return;
     }
-    addExpense({ ...newExpense, amount: parseFloat(newExpense.amount) });
-    toast({ title: 'Success', description: 'Expense added' });
+    addExpense({ 
+      ...newExpense, 
+      amount: parseFloat(newExpense.amount),
+      recurringFrequency: newExpense.recurring ? newExpense.recurringFrequency : undefined,
+    });
+    toast({ title: 'Success', description: newExpense.recurring ? 'Recurring expense added' : 'Expense added' });
     setExpenseDialogOpen(false);
-    setNewExpense({ category: 'utilities', description: '', amount: '', date: format(new Date(), 'yyyy-MM-dd'), recurring: false });
+    setNewExpense({ category: 'utilities', description: '', amount: '', date: format(new Date(), 'yyyy-MM-dd'), recurring: false, recurringFrequency: 'monthly', department: 'general' });
   };
 
   const handleExportPDF = () => {
@@ -609,6 +634,19 @@ export default function HotelPLReport() {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <Label>Department</Label>
+                    <Select value={newExpense.department} onValueChange={(v) => setNewExpense({ ...newExpense, department: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEPARTMENTS_LIST.map(dept => (
+                          <SelectItem key={dept.value} value={dept.value}>{dept.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label>Description</Label>
                     <Input 
                       placeholder="e.g., Electricity bill" 
@@ -633,9 +671,35 @@ export default function HotelPLReport() {
                       onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
                     />
                   </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg border">
+                    <Label htmlFor="recurring" className="flex items-center gap-2 cursor-pointer">
+                      <Repeat className="h-4 w-4" />
+                      Recurring Expense
+                    </Label>
+                    <Switch
+                      id="recurring"
+                      checked={newExpense.recurring}
+                      onCheckedChange={(checked) => setNewExpense({ ...newExpense, recurring: checked })}
+                    />
+                  </div>
+                  {newExpense.recurring && (
+                    <div className="space-y-2">
+                      <Label>Frequency</Label>
+                      <Select value={newExpense.recurringFrequency} onValueChange={(v: 'monthly' | 'quarterly' | 'yearly') => setNewExpense({ ...newExpense, recurringFrequency: v })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="quarterly">Quarterly</SelectItem>
+                          <SelectItem value="yearly">Yearly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <Button className="w-full" onClick={handleAddExpense}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Expense
+                    {newExpense.recurring ? 'Add Recurring Expense' : 'Add Expense'}
                   </Button>
                 </CardContent>
               </Card>
@@ -690,6 +754,105 @@ export default function HotelPLReport() {
               </Card>
             </div>
 
+            {/* Department Expense Allocation */}
+            {periodDepartmentExpenses.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    Department Expense Allocation
+                  </CardTitle>
+                  <CardDescription>Operational costs by department</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {periodDepartmentExpenses.map((deptExp, i) => (
+                      <div key={deptExp.department} className="p-4 rounded-lg border space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                            <span className="font-medium">{deptExp.displayName}</span>
+                          </div>
+                          <span className="text-lg font-bold">{formatCurrency(deptExp.total)}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {EXPENSE_CATEGORIES.map(cat => {
+                            const catTotal = deptExp.expenses.filter(e => e.category === cat.value).reduce((sum, e) => sum + e.amount, 0);
+                            if (catTotal === 0) return null;
+                            return (
+                              <div key={cat.value} className="flex items-center justify-between text-sm text-muted-foreground">
+                                <span>{cat.label}</span>
+                                <span>{formatCurrency(catTotal)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <Progress 
+                          value={(deptExp.total / totalExpenses) * 100} 
+                          className="h-2"
+                        />
+                        <p className="text-xs text-muted-foreground text-right">
+                          {((deptExp.total / totalExpenses) * 100).toFixed(1)}% of total
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recurring Expenses */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Repeat className="h-5 w-5" />
+                      Recurring Expenses
+                    </CardTitle>
+                    <CardDescription>Auto-generated monthly, quarterly, or yearly expenses</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={generateRecurringExpenses}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Generate
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {expenses.filter(e => e.recurring && !e.parentId).length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No recurring expenses set up. Add an expense with "Recurring" checked to auto-generate.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {expenses.filter(e => e.recurring && !e.parentId).map(expense => (
+                      <div key={expense.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary">
+                            <Repeat className="h-3 w-3 mr-1" />
+                            {expense.recurringFrequency || 'Monthly'}
+                          </Badge>
+                          <Badge variant="outline">{EXPENSE_CATEGORIES.find(c => c.value === expense.category)?.label}</Badge>
+                          <div>
+                            <p className="font-medium">{expense.description}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {DEPARTMENTS_LIST.find(d => d.value === expense.department)?.label || 'General'} · Started {format(new Date(expense.date), 'MMM yyyy')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold">{formatCurrency(expense.amount)}</span>
+                          <Button variant="ghost" size="icon" onClick={() => deleteExpense(expense.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Expense List */}
             <Card>
               <CardHeader>
@@ -706,6 +869,15 @@ export default function HotelPLReport() {
                       <div key={expense.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50">
                         <div className="flex items-center gap-3">
                           <Badge variant="outline">{EXPENSE_CATEGORIES.find(c => c.value === expense.category)?.label}</Badge>
+                          {expense.department && (
+                            <Badge variant="secondary">{DEPARTMENTS_LIST.find(d => d.value === expense.department)?.label}</Badge>
+                          )}
+                          {expense.parentId && (
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                              <Repeat className="h-3 w-3 mr-1" />
+                              Auto
+                            </Badge>
+                          )}
                           <div>
                             <p className="font-medium">{expense.description}</p>
                             <p className="text-sm text-muted-foreground">{format(new Date(expense.date), 'MMM dd, yyyy')}</p>
