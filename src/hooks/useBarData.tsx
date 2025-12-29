@@ -244,6 +244,22 @@ export function useBarMenu() {
   });
 }
 
+// Fetch ALL bar menu items including unavailable ones (for accurate COGS calculation in reports)
+export function useBarMenuAll() {
+  return useQuery({
+    queryKey: ['bar-menu-all'],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('bar_menu_items')
+        .select('*')
+        .order('category', { ascending: true })
+        .order('name', { ascending: true }) as any);
+      if (error) throw error;
+      return data as BarMenuItem[];
+    },
+  });
+}
+
 export function useBarMenuMutations() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

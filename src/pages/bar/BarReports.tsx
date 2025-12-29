@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useBarOrders, useBarStats, useBarInventory, useBarMenu, useBarOrderItemsAll } from '@/hooks/useBarData';
+import { useBarOrders, useBarStats, useBarInventory, useBarMenuAll, useBarOrderItemsAll } from '@/hooks/useBarData';
 import { useHotelSettings } from '@/hooks/useHotelSettings';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { format, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
@@ -40,7 +40,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function BarReports() {
   const { data: orders = [] } = useBarOrders('all');
   const { data: inventory = [] } = useBarInventory();
-  const { data: menuItems = [] } = useBarMenu();
+  const { data: menuItems = [] } = useBarMenuAll();
   const { data: allOrderItems = [] } = useBarOrderItemsAll();
   const { data: stats } = useBarStats();
   const { settings } = useHotelSettings();
