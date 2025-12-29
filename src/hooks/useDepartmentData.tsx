@@ -156,6 +156,8 @@ export function useKitchenMutations() {
 
   const updateInventory = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<DepartmentInventory> & { id: string }) => {
+      const { data: oldData } = await supabase.from('kitchen_inventory').select('*').eq('id', id).single();
+      
       const { data, error } = await supabase
         .from('kitchen_inventory')
         .update(updates)
@@ -163,12 +165,19 @@ export function useKitchenMutations() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return { newData: data, oldData };
     },
-    onSuccess: (data) => {
+    onSuccess: ({ newData, oldData }) => {
       queryClient.invalidateQueries({ queryKey: ['kitchen-inventory'] });
       toast({ title: 'Kitchen inventory updated' });
-      logActivity({ actionType: 'edit', module: 'kitchen', description: `updated inventory item "${data.name}"`, recordType: 'inventory', newData: data as unknown as Json });
+      logActivity({ 
+        actionType: 'edit', 
+        module: 'kitchen', 
+        description: `updated inventory item "${newData.name}"`, 
+        recordType: 'inventory', 
+        oldData: oldData as unknown as Json,
+        newData: newData as unknown as Json 
+      });
     },
   });
 
@@ -191,6 +200,8 @@ export function useKitchenMutations() {
 
   const updateMenuItem = useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; name?: string; category?: string; price?: number; description?: string | null; is_available?: boolean }) => {
+      const { data: oldData } = await supabase.from('kitchen_menu_items').select('*').eq('id', id).single();
+      
       const { data, error } = await supabase
         .from('kitchen_menu_items')
         .update(updates)
@@ -198,12 +209,19 @@ export function useKitchenMutations() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return { newData: data, oldData };
     },
-    onSuccess: (data) => {
+    onSuccess: ({ newData, oldData }) => {
       queryClient.invalidateQueries({ queryKey: ['kitchen-menu'] });
       toast({ title: 'Menu item updated' });
-      logActivity({ actionType: 'edit', module: 'kitchen', description: `updated menu item "${data.name}"`, recordType: 'menu', newData: data as unknown as Json });
+      logActivity({ 
+        actionType: 'edit', 
+        module: 'kitchen', 
+        description: `updated menu item "${newData.name}"`, 
+        recordType: 'menu', 
+        oldData: oldData as unknown as Json,
+        newData: newData as unknown as Json 
+      });
     },
   });
 
@@ -522,6 +540,8 @@ export function useRestaurantMutations() {
 
   const updateInventory = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<DepartmentInventory> & { id: string }) => {
+      const { data: oldData } = await supabase.from('restaurant_inventory').select('*').eq('id', id).single();
+      
       const { data, error } = await supabase
         .from('restaurant_inventory')
         .update(updates)
@@ -529,12 +549,19 @@ export function useRestaurantMutations() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return { newData: data, oldData };
     },
-    onSuccess: (data) => {
+    onSuccess: ({ newData, oldData }) => {
       queryClient.invalidateQueries({ queryKey: ['restaurant-inventory'] });
       toast({ title: 'Restaurant inventory updated' });
-      logActivity({ actionType: 'edit', module: 'restaurant', description: `updated inventory item "${data.name}"`, recordType: 'inventory', newData: data as unknown as Json });
+      logActivity({ 
+        actionType: 'edit', 
+        module: 'restaurant', 
+        description: `updated inventory item "${newData.name}"`, 
+        recordType: 'inventory', 
+        oldData: oldData as unknown as Json,
+        newData: newData as unknown as Json 
+      });
     },
   });
 
@@ -557,6 +584,8 @@ export function useRestaurantMutations() {
 
   const updateMenuItem = useMutation({
     mutationFn: async ({ id, ...updates }: MenuItemUpdate) => {
+      const { data: oldData } = await supabase.from('restaurant_menu_items').select('*').eq('id', id).single();
+      
       const { data, error } = await supabase
         .from('restaurant_menu_items')
         .update(updates)
@@ -564,12 +593,19 @@ export function useRestaurantMutations() {
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return { newData: data, oldData };
     },
-    onSuccess: (data) => {
+    onSuccess: ({ newData, oldData }) => {
       queryClient.invalidateQueries({ queryKey: ['restaurant-menu'] });
       toast({ title: 'Menu item updated' });
-      logActivity({ actionType: 'edit', module: 'restaurant', description: `updated menu item "${data.name}"`, recordType: 'menu', newData: data as unknown as Json });
+      logActivity({ 
+        actionType: 'edit', 
+        module: 'restaurant', 
+        description: `updated menu item "${newData.name}"`, 
+        recordType: 'menu', 
+        oldData: oldData as unknown as Json,
+        newData: newData as unknown as Json 
+      });
     },
   });
 
