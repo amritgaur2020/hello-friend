@@ -31,6 +31,7 @@ export default function AdminSettings() {
   const [email, setEmail] = useState('');
   const [currency, setCurrency] = useState('₹');
   const [gstNumber, setGstNumber] = useState('');
+  const [panNumber, setPanNumber] = useState('');
   const [fssaiNumber, setFssaiNumber] = useState('');
 
   // Password change form
@@ -52,6 +53,7 @@ export default function AdminSettings() {
       setEmail(settings.email || '');
       setCurrency(settings.currency_symbol || '₹');
       setGstNumber(settings.gst_number || '');
+      setPanNumber(settings.pan_number || '');
       setFssaiNumber((settings as any).fssai_number || '');
     }
     fetchData();
@@ -79,6 +81,7 @@ export default function AdminSettings() {
         email,
         currency_symbol: currency,
         gst_number: gstNumber,
+        pan_number: panNumber,
         fssai_number: fssaiNumber,
         updated_at: new Date().toISOString(),
       } as any).eq('id', settings?.id);
@@ -202,9 +205,13 @@ export default function AdminSettings() {
                   <Input value={gstNumber} onChange={(e) => setGstNumber(e.target.value)} placeholder="e.g., 27AABCU9603R1ZM" />
                 </div>
                 <div className="space-y-2">
-                  <Label>FSSAI License No</Label>
-                  <Input value={fssaiNumber} onChange={(e) => setFssaiNumber(e.target.value)} placeholder="e.g., 12345678901234" />
+                  <Label>PAN Number</Label>
+                  <Input value={panNumber} onChange={(e) => setPanNumber(e.target.value)} placeholder="e.g., AABCU9603R" />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>FSSAI License No</Label>
+                <Input value={fssaiNumber} onChange={(e) => setFssaiNumber(e.target.value)} placeholder="e.g., 12345678901234" />
               </div>
               <Button onClick={handleSaveSettings} disabled={loading} className="gap-2">
                 <Save className="h-4 w-4" />{loading ? 'Saving...' : 'Save Changes'}
