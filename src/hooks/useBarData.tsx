@@ -455,18 +455,19 @@ export function useBarOrderMutations() {
 
       if (itemsError) throw itemsError;
 
-      return newOrder;
+      return { order: newOrder, items: orderItems };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['bar-orders'] });
       toast({ title: 'Order created successfully' });
+      const orderWithItems = { ...data.order, items: data.items };
       logActivity({
         actionType: 'create',
         module: 'bar',
-        description: `Created order ${data.order_number}`,
-        recordId: data.id,
+        description: `Created order ${data.order.order_number}`,
+        recordId: data.order.id,
         recordType: 'bar_orders',
-        newData: data,
+        newData: orderWithItems,
       });
     },
     onError: (error: Error) => {

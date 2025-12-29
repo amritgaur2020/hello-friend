@@ -60,32 +60,33 @@ export default function RestaurantOrders() {
 
     // After order is created, fetch items and print KOT automatically
     if (result) {
+      const orderData = result.order;
       const { data: orderItems } = await supabase
         .from('restaurant_order_items')
         .select('*')
-        .eq('order_id', result.id)
+        .eq('order_id', orderData.id)
         .order('created_at', { ascending: true });
 
       if (orderItems && orderItems.length > 0) {
         const typedOrder: DepartmentOrder = {
-          id: result.id,
-          order_number: result.order_number || '',
-          order_type: result.order_type || 'dine_in',
-          table_number: result.table_number,
-          guest_id: result.guest_id,
-          room_id: result.room_id,
-          status: result.status || 'new',
-          subtotal: result.subtotal || 0,
-          tax_amount: result.tax_amount || 0,
-          discount_amount: result.discount_amount || 0,
-          total_amount: result.total_amount || 0,
-          payment_status: result.payment_status || 'pending',
-          payment_mode: result.payment_mode,
-          notes: result.notes,
-          created_by: result.created_by,
-          served_by: result.served_by,
-          created_at: result.created_at || new Date().toISOString(),
-          updated_at: result.updated_at || new Date().toISOString(),
+          id: orderData.id,
+          order_number: orderData.order_number || '',
+          order_type: orderData.order_type || 'dine_in',
+          table_number: orderData.table_number,
+          guest_id: orderData.guest_id,
+          room_id: orderData.room_id,
+          status: orderData.status || 'new',
+          subtotal: orderData.subtotal || 0,
+          tax_amount: orderData.tax_amount || 0,
+          discount_amount: orderData.discount_amount || 0,
+          total_amount: orderData.total_amount || 0,
+          payment_status: orderData.payment_status || 'pending',
+          payment_mode: orderData.payment_mode,
+          notes: orderData.notes,
+          created_by: orderData.created_by,
+          served_by: orderData.served_by,
+          created_at: orderData.created_at || new Date().toISOString(),
+          updated_at: orderData.updated_at || new Date().toISOString(),
         };
 
         const typedItems: DepartmentOrderItem[] = orderItems.map(item => ({
