@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Trash2, Plus, Minus, ShoppingCart, Printer, CreditCard, Banknote, Smartphone, Building2 } from 'lucide-react';
 import { CartItem } from '@/types/bar';
 import { useHotelSettings } from '@/hooks/useHotelSettings';
+import { useTaxSettings } from '@/hooks/useTaxSettings';
 import { cn } from '@/lib/utils';
 
 interface OrderPanelProps {
@@ -44,6 +45,7 @@ export function OrderPanel({
   isLoading 
 }: OrderPanelProps) {
   const { settings } = useHotelSettings();
+  const { calculateTotalTax } = useTaxSettings();
   const [tableNumber, setTableNumber] = useState('');
   const [orderType, setOrderType] = useState<'dine_in' | 'room_service' | 'takeaway'>('dine_in');
   const [notes, setNotes] = useState('');
@@ -51,8 +53,8 @@ export function OrderPanel({
   const [paymentMode, setPaymentMode] = useState<'cash' | 'card' | 'upi' | 'room_charge'>('cash');
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.cartQuantity), 0);
-  const taxRate = 0.18; // 18% GST
-  const taxAmount = subtotal * taxRate;
+  // Use admin tax settings instead of hardcoded 18% GST
+  const taxAmount = calculateTotalTax([{ category: 'Bar', total: subtotal }]);
   const total = subtotal + taxAmount;
 
   const handlePlaceOrder = () => {

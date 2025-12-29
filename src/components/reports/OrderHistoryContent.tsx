@@ -1,17 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   FileText, Download, Search, Filter, ChevronLeft, ChevronRight, Eye, 
-  ArrowUpDown, Calendar, Clock, DollarSign, ShoppingCart, TrendingUp, Edit2, Trash2, Percent, Plus
+  ArrowUpDown, Calendar, Clock, DollarSign, ShoppingCart, TrendingUp, Edit2, Trash2, Percent, Plus, Lock, AlertTriangle
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, parseISO } from "date-fns";
@@ -19,6 +19,9 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
+import { useTaxSettings, CHARGE_TO_TAX_CATEGORY } from "@/hooks/useTaxSettings";
+import { useModuleAccess } from "@/hooks/usePermissions";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface OrderHistoryContentProps {
   orders: any[];
@@ -42,6 +45,9 @@ export function OrderHistoryContent({
   onUpdateOrder,
 }: OrderHistoryContentProps) {
   const { toast } = useToast();
+  const { calculateTotalTax, getConsolidatedTaxBreakdown, isLoading: taxLoading } = useTaxSettings();
+  const { canEdit, isAdmin } = useModuleAccess(department.toLowerCase());
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [paymentFilter, setPaymentFilter] = useState<string>("all");
@@ -55,6 +61,7 @@ export function OrderHistoryContent({
   const [sortField, setSortField] = useState<string>("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showPermissionDenied, setShowPermissionDenied] = useState(false);
   const itemsPerPage = 20;
 
   // Summary stats
@@ -156,6 +163,12 @@ export function OrderHistoryContent({
   };
 
   const handleEditOrder = (order: any) => {
+    // Check permission before allowing edit
+    if (!canEdit && !isAdmin) {
+      setShowPermissionDenied(true);
+      return;
+    }
+    
     const items = orderItems.filter(item => item.order_id === order.id);
     setEditingItems(items.map(item => ({
       ...item,
@@ -179,11 +192,35 @@ export function OrderHistoryContent({
     });
   };
 
+  // Calculate tax based on admin tax settings
+  const calculateAutoTax = (subtotal: number): number => {
+    // Map department to tax category
+    const taxCategory = CHARGE_TO_TAX_CATEGORY[department] || 'food_beverage';
+    const taxAmount = calculateTotalTax([{ category: taxCategory, total: subtotal }]);
+    return taxAmount;
+  };
+
+  // Get tax breakdown for display
+  const getTaxBreakdownDisplay = (subtotal: number) => {
+    const taxCategory = CHARGE_TO_TAX_CATEGORY[department] || 'food_beverage';
+    return getConsolidatedTaxBreakdown([{ category: taxCategory, total: subtotal }]);
+  };
+
   const recalculateSubtotal = (existingItems: any[], addedItems: any[]) => {
     const existingTotal = existingItems.reduce((sum, item) => sum + (item.total_price || 0), 0);
     const newTotal = addedItems.reduce((sum, item) => sum + (item.total_price || 0), 0);
     return existingTotal + newTotal;
   };
+
+  // Auto-update tax when subtotal changes
+  useEffect(() => {
+    if (editingOrder && !taxLoading) {
+      const autoTax = calculateAutoTax(editingOrder.subtotal);
+      if (autoTax !== editingOrder.tax_amount) {
+        setEditingOrder((prev: any) => ({ ...prev, tax_amount: autoTax }));
+      }
+    }
+  }, [editingOrder?.subtotal, taxLoading]);
 
   const handleItemChange = (index: number, field: string, value: number) => {
     const updatedItems = [...editingItems];
@@ -583,8 +620,13 @@ export function OrderHistoryContent({
                             variant="ghost" 
                             size="icon"
                             onClick={() => handleEditOrder(order)}
+                            title={!canEdit && !isAdmin ? "You don't have permission to edit orders" : "Edit order"}
                           >
-                            <Edit2 className="h-4 w-4" />
+                            {!canEdit && !isAdmin ? (
+                              <Lock className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Edit2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </TableCell>
                       )}
@@ -981,14 +1023,35 @@ export function OrderHistoryContent({
                   </div>
                   <div className="space-y-2">
                     <Label className="flex items-center gap-1">
-                      <Percent className="h-3 w-3" /> GST/Tax Amount
+                      <Lock className="h-3 w-3" /> GST/Tax Amount (Auto-calculated)
                     </Label>
-                    <Input 
-                      type="number"
-                      step="0.01"
-                      value={editingOrder.tax_amount || 0} 
-                      onChange={(e) => setEditingOrder({...editingOrder, tax_amount: parseFloat(e.target.value) || 0})}
-                    />
+                    <div className="relative">
+                      <Input 
+                        type="number"
+                        step="0.01"
+                        value={editingOrder.tax_amount?.toFixed(2) || '0.00'} 
+                        readOnly
+                        disabled
+                        className="bg-muted cursor-not-allowed"
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                    {/* Tax breakdown from admin settings */}
+                    {editingOrder.subtotal > 0 && (
+                      <div className="text-xs text-muted-foreground space-y-1 bg-muted/30 rounded p-2">
+                        {getTaxBreakdownDisplay(editingOrder.subtotal).map((tax, idx) => (
+                          <div key={idx} className="flex justify-between">
+                            <span>{tax.name} ({tax.percentage}%)</span>
+                            <span>{currencySymbol}{tax.amount.toFixed(2)}</span>
+                          </div>
+                        ))}
+                        {getTaxBreakdownDisplay(editingOrder.subtotal).length === 0 && (
+                          <span className="text-amber-600">No active taxes configured in admin settings</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -998,9 +1061,21 @@ export function OrderHistoryContent({
                     <Input 
                       type="number"
                       step="0.01"
+                      min="0"
+                      max={editingOrder.subtotal || 0}
                       value={editingOrder.discount_amount || 0} 
-                      onChange={(e) => setEditingOrder({...editingOrder, discount_amount: parseFloat(e.target.value) || 0})}
+                      onChange={(e) => {
+                        const discount = parseFloat(e.target.value) || 0;
+                        // Prevent discount from exceeding subtotal (security check)
+                        const maxDiscount = editingOrder.subtotal || 0;
+                        setEditingOrder({...editingOrder, discount_amount: Math.min(Math.max(0, discount), maxDiscount)});
+                      }}
                     />
+                    {editingOrder.discount_amount > 0 && (
+                      <p className="text-xs text-amber-600">
+                        ⚠️ Discount applied - logged for audit
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Notes</Label>
@@ -1013,13 +1088,22 @@ export function OrderHistoryContent({
                   </div>
                 </div>
 
+                {/* Security notice */}
+                <Alert className="bg-blue-50 border-blue-200">
+                  <AlertTriangle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800 text-xs">
+                    All changes are logged with timestamps and user details for audit purposes. 
+                    Tax is auto-calculated based on admin tax settings and cannot be manually edited.
+                  </AlertDescription>
+                </Alert>
+
                 <div className="bg-muted/50 rounded-lg p-3 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal:</span>
                     <span>{currencySymbol}{(editingOrder.subtotal || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>GST/Tax:</span>
+                    <span>GST/Tax (Auto):</span>
                     <span>{currencySymbol}{(editingOrder.tax_amount || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-red-600">
@@ -1042,6 +1126,34 @@ export function OrderHistoryContent({
             </Button>
             <Button onClick={handleSaveEdit} disabled={isUpdating}>
               {isUpdating ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Permission Denied Dialog */}
+      <Dialog open={showPermissionDenied} onOpenChange={setShowPermissionDenied}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Lock className="h-5 w-5" />
+              Permission Denied
+            </DialogTitle>
+            <DialogDescription>
+              You do not have permission to edit orders. Please contact your administrator 
+              to request the 'edit' permission for the {department} module.
+            </DialogDescription>
+          </DialogHeader>
+          <Alert className="bg-amber-50 border-amber-200">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-800 text-sm">
+              Only staff members with explicit 'edit' permission or administrators can modify orders. 
+              This restriction is in place for security and audit purposes.
+            </AlertDescription>
+          </Alert>
+          <DialogFooter>
+            <Button onClick={() => setShowPermissionDenied(false)}>
+              Understood
             </Button>
           </DialogFooter>
         </DialogContent>
