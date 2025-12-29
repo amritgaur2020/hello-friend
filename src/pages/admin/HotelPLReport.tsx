@@ -71,7 +71,7 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 
-const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))', 'hsl(var(--chart-7))'];
 
 export default function HotelPLReport() {
   const { isAdmin, loading: authLoading } = useAuth();
@@ -152,7 +152,10 @@ export default function HotelPLReport() {
   const handleExportPDF = () => {
     exportToPDF({
       summary, departments, inventoryValuation, lowStockItems, forecast,
-      expenses: Object.entries(expenseSummary).filter(([k]) => k !== 'total').map(([category, amount]) => ({ category, amount: amount as number })),
+      expenses: periodExpenses,
+      expenseBreakdown: Object.entries(expenseSummary).filter(([k]) => k !== 'total').map(([category, amount]) => ({ category, amount: amount as number })),
+      departmentExpenses: periodDepartmentExpenses.map(d => ({ department: d.department, displayName: d.displayName, total: d.total })),
+      budgetComparisons,
       frontOffice,
       dateRange: { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
       hotelName: settings?.hotel_name,
@@ -164,7 +167,10 @@ export default function HotelPLReport() {
   const handleExportExcel = () => {
     exportToExcel({
       summary, departments, inventoryValuation, lowStockItems, forecast,
-      expenses: Object.entries(expenseSummary).filter(([k]) => k !== 'total').map(([category, amount]) => ({ category, amount: amount as number })),
+      expenses: periodExpenses,
+      expenseBreakdown: Object.entries(expenseSummary).filter(([k]) => k !== 'total').map(([category, amount]) => ({ category, amount: amount as number })),
+      departmentExpenses: periodDepartmentExpenses.map(d => ({ department: d.department, displayName: d.displayName, total: d.total })),
+      budgetComparisons,
       frontOffice,
       dateRange: { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
       hotelName: settings?.hotel_name,

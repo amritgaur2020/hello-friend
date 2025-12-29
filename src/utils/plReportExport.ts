@@ -4,6 +4,24 @@ import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { DepartmentPLData, HotelPLSummary, InventoryValuation, LowStockItem } from '@/hooks/useHotelPLData';
 import { Forecast } from '@/utils/forecastingUtils';
+import { Expense } from '@/hooks/useExpenseTracking';
+import { BudgetComparison } from '@/hooks/useBudgetTargets';
+
+// Color palette matching the UI (converted to RGB for jsPDF)
+const COLORS = {
+  chart1: [59, 130, 246],   // Blue
+  chart2: [34, 197, 94],    // Green
+  chart3: [249, 115, 22],   // Orange
+  chart4: [139, 92, 246],   // Purple
+  chart5: [236, 72, 153],   // Pink
+  chart6: [234, 179, 8],    // Yellow
+  chart7: [20, 184, 166],   // Teal
+  primary: [249, 115, 22],  // Primary orange
+  success: [34, 197, 94],
+  warning: [245, 158, 11],
+  danger: [239, 68, 68],
+  muted: [100, 116, 139],
+} as const;
 
 interface ExportData {
   summary: HotelPLSummary;
@@ -11,7 +29,10 @@ interface ExportData {
   inventoryValuation: InventoryValuation[];
   lowStockItems: LowStockItem[];
   forecast: Forecast;
-  expenses?: { category: string; amount: number }[];
+  expenses?: Expense[];
+  expenseBreakdown?: { category: string; amount: number }[];
+  departmentExpenses?: { department: string; displayName: string; total: number }[];
+  budgetComparisons?: BudgetComparison[];
   frontOffice?: { checkIns: number; checkOuts: number; revenue: number };
   dateRange: { start: Date; end: Date };
   hotelName?: string;
@@ -20,31 +41,41 @@ interface ExportData {
 
 export function exportToPDF(data: ExportData): void {
   const doc = new jsPDF();
-  const { summary, departments, inventoryValuation, lowStockItems, forecast, expenses, frontOffice, dateRange, hotelName, currencySymbol } = data;
+  const { summary, departments, inventoryValuation, lowStockItems, forecast, expenses, expenseBreakdown, departmentExpenses, budgetComparisons, frontOffice, dateRange, hotelName, currencySymbol } = data;
   
   const formatCurrency = (value: number) => `${currencySymbol}${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+  const pageWidth = doc.internal.pageSize.getWidth();
   
-  // Header
-  doc.setFontSize(20);
+  // Header with branding
+  doc.setFillColor(249, 115, 22); // Primary orange
+  doc.rect(0, 0, pageWidth, 35, 'F');
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text(hotelName || 'Hotel P/L Report', 14, 22);
+  doc.text(hotelName || 'Hotel P/L Report', 14, 20);
   
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Period: ${format(dateRange.start, 'MMM dd, yyyy')} - ${format(dateRange.end, 'MMM dd, yyyy')}`, 14, 30);
-  doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 14, 36);
+  doc.text(`Period: ${format(dateRange.start, 'MMM dd, yyyy')} - ${format(dateRange.end, 'MMM dd, yyyy')}`, 14, 28);
+  doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, pageWidth - 14 - doc.getTextWidth(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`), 28);
   
-  // Executive Summary
-  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  
+  // Executive Summary Section
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
+  doc.setTextColor(34, 34, 34);
   doc.text('Executive Summary', 14, 48);
   
   const summaryData = [
     ['Total Revenue', formatCurrency(summary.totalRevenue)],
     ['Total COGS', formatCurrency(summary.totalCOGS)],
+    ['Total Tax', formatCurrency(summary.totalTax)],
     ['Gross Profit', formatCurrency(summary.grossProfit)],
     ['Gross Margin', `${summary.grossMargin.toFixed(1)}%`],
     ['Net Profit', formatCurrency(summary.netProfit)],
+    ['Net Margin', `${summary.netMargin.toFixed(1)}%`],
     ['Total Orders', summary.totalOrders.toString()],
     ['Avg Order Value', formatCurrency(summary.avgOrderValue)],
   ];
@@ -54,31 +85,52 @@ export function exportToPDF(data: ExportData): void {
     head: [['Metric', 'Value']],
     body: summaryData,
     theme: 'striped',
-    headStyles: { fillColor: [59, 130, 246] },
+    headStyles: { fillColor: COLORS.chart1 as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    styles: { fontSize: 10, cellPadding: 4 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 80 },
+      1: { halign: 'right', cellWidth: 60 },
+    },
   });
   
   // Department Performance
   let yPos = (doc as any).lastAutoTable.finalY + 15;
   
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text('Department Performance', 14, yPos);
   
-  const deptData = departments.map(d => [
-    d.displayName,
+  const deptColors = [COLORS.chart1, COLORS.chart2, COLORS.chart3, COLORS.chart4, COLORS.chart5, COLORS.chart6, COLORS.chart7];
+  
+  const deptData = departments.map((d, i) => [
+    { content: d.displayName, styles: { textColor: deptColors[i % deptColors.length] as [number, number, number], fontStyle: 'bold' as const } },
     formatCurrency(d.revenue),
     formatCurrency(d.cogs),
+    formatCurrency(d.tax),
     formatCurrency(d.grossProfit),
+    formatCurrency(d.netProfit),
     `${d.margin.toFixed(1)}%`,
     d.orderCount.toString(),
   ]);
   
   autoTable(doc, {
     startY: yPos + 4,
-    head: [['Department', 'Revenue', 'COGS', 'Profit', 'Margin', 'Orders']],
+    head: [['Department', 'Revenue', 'COGS', 'Tax', 'Gross Profit', 'Net Profit', 'Margin', 'Orders']],
     body: deptData,
     theme: 'striped',
-    headStyles: { fillColor: [59, 130, 246] },
+    headStyles: { fillColor: COLORS.chart2 as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    styles: { fontSize: 9, cellPadding: 3 },
+    columnStyles: {
+      1: { halign: 'right' },
+      2: { halign: 'right' },
+      3: { halign: 'right' },
+      4: { halign: 'right' },
+      5: { halign: 'right', textColor: COLORS.success as [number, number, number] },
+      6: { halign: 'right' },
+      7: { halign: 'right' },
+    },
   });
   
   // Front Office (if available)
@@ -90,7 +142,7 @@ export function exportToPDF(data: ExportData): void {
       yPos = 20;
     }
     
-    doc.setFontSize(14);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('Front Office Summary', 14, yPos);
     
@@ -103,55 +155,152 @@ export function exportToPDF(data: ExportData): void {
         ['Room Revenue', formatCurrency(frontOffice.revenue)],
       ],
       theme: 'striped',
-      headStyles: { fillColor: [34, 197, 94] },
+      headStyles: { fillColor: COLORS.chart3 as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      styles: { fontSize: 10, cellPadding: 4 },
     });
   }
   
-  // Expenses (if available)
-  if (expenses && expenses.length > 0) {
+  // Expenses Section
+  if (expenseBreakdown && expenseBreakdown.length > 0) {
     yPos = (doc as any).lastAutoTable.finalY + 15;
     
-    if (yPos > 250) {
+    if (yPos > 220) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Operating Expenses', 14, yPos);
+    
+    const expenseTotal = expenseBreakdown.reduce((sum, e) => sum + e.amount, 0);
+    const expenseData = [
+      ...expenseBreakdown.map((e, i) => [
+        { content: e.category.charAt(0).toUpperCase() + e.category.slice(1), styles: { textColor: deptColors[i % deptColors.length] as [number, number, number] } },
+        formatCurrency(e.amount),
+        `${((e.amount / expenseTotal) * 100).toFixed(1)}%`,
+      ]),
+      [{ content: 'Total Expenses', styles: { fontStyle: 'bold' as const } }, { content: formatCurrency(expenseTotal), styles: { fontStyle: 'bold' as const } }, { content: '100%', styles: { fontStyle: 'bold' as const } }],
+    ];
+    
+    autoTable(doc, {
+      startY: yPos + 4,
+      head: [['Category', 'Amount', '% of Total']],
+      body: expenseData,
+      theme: 'striped',
+      headStyles: { fillColor: COLORS.danger as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [255, 245, 245] },
+      styles: { fontSize: 10, cellPadding: 4 },
+      columnStyles: {
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+      },
+    });
+  }
+  
+  // Department Expense Allocation
+  if (departmentExpenses && departmentExpenses.length > 0) {
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+    
+    if (yPos > 240) {
       doc.addPage();
       yPos = 20;
     }
     
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Operating Expenses', 14, yPos);
+    doc.text('Department Expense Allocation', 14, yPos);
     
-    const expenseTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const expenseData = [
-      ...expenses.map(e => [e.category, formatCurrency(e.amount)]),
-      ['Total Expenses', formatCurrency(expenseTotal)],
-    ];
+    const deptExpTotal = departmentExpenses.reduce((sum, d) => sum + d.total, 0);
+    const deptExpData = departmentExpenses.map((d, i) => [
+      { content: d.displayName, styles: { textColor: deptColors[i % deptColors.length] as [number, number, number] } },
+      formatCurrency(d.total),
+      `${((d.total / deptExpTotal) * 100).toFixed(1)}%`,
+    ]);
     
     autoTable(doc, {
       startY: yPos + 4,
-      head: [['Category', 'Amount']],
-      body: expenseData,
+      head: [['Department', 'Total Expenses', '% of Total']],
+      body: deptExpData,
       theme: 'striped',
-      headStyles: { fillColor: [239, 68, 68] },
+      headStyles: { fillColor: COLORS.chart4 as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      styles: { fontSize: 10, cellPadding: 4 },
+      columnStyles: {
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+      },
+    });
+  }
+  
+  // Budget vs Actual (if available)
+  if (budgetComparisons && budgetComparisons.some(bc => bc.revenueTarget > 0)) {
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+    
+    if (yPos > 200) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Budget vs Actual', 14, yPos);
+    
+    const budgetData = budgetComparisons
+      .filter(bc => bc.revenueTarget > 0)
+      .map((bc, i) => [
+        { content: bc.displayName, styles: { textColor: deptColors[i % deptColors.length] as [number, number, number] } },
+        formatCurrency(bc.revenueTarget),
+        formatCurrency(bc.revenueActual),
+        { 
+          content: `${bc.revenuePercent.toFixed(0)}%`, 
+          styles: { textColor: (bc.revenuePercent >= 90 ? COLORS.success : bc.revenuePercent >= 70 ? COLORS.warning : COLORS.danger) as [number, number, number] } 
+        },
+        formatCurrency(bc.profitTarget),
+        formatCurrency(bc.profitActual),
+        { 
+          content: `${bc.profitPercent.toFixed(0)}%`, 
+          styles: { textColor: (bc.profitPercent >= 90 ? COLORS.success : bc.profitPercent >= 70 ? COLORS.warning : COLORS.danger) as [number, number, number] } 
+        },
+      ]);
+    
+    autoTable(doc, {
+      startY: yPos + 4,
+      head: [['Department', 'Rev Target', 'Rev Actual', 'Rev %', 'Profit Target', 'Profit Actual', 'Profit %']],
+      body: budgetData,
+      theme: 'striped',
+      headStyles: { fillColor: COLORS.chart5 as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: {
+        1: { halign: 'right' },
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+      },
     });
   }
   
   // Inventory Valuation
   yPos = (doc as any).lastAutoTable.finalY + 15;
   
-  if (yPos > 250) {
+  if (yPos > 220) {
     doc.addPage();
     yPos = 20;
   }
   
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text('Inventory Valuation', 14, yPos);
   
-  const invData = inventoryValuation.map(iv => [
-    iv.displayName,
+  const invData = inventoryValuation.map((iv, i) => [
+    { content: iv.displayName, styles: { textColor: deptColors[i % deptColors.length] as [number, number, number] } },
     formatCurrency(iv.totalValue),
     iv.itemCount.toString(),
-    iv.lowStockCount.toString(),
+    { content: iv.lowStockCount.toString(), styles: { textColor: (iv.lowStockCount > 0 ? COLORS.danger : COLORS.success) as [number, number, number] } },
   ]);
   
   autoTable(doc, {
@@ -159,18 +308,25 @@ export function exportToPDF(data: ExportData): void {
     head: [['Department', 'Value', 'Items', 'Low Stock']],
     body: invData,
     theme: 'striped',
-    headStyles: { fillColor: [168, 85, 247] },
+    headStyles: { fillColor: COLORS.chart6 as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    styles: { fontSize: 10, cellPadding: 4 },
+    columnStyles: {
+      1: { halign: 'right' },
+      2: { halign: 'right' },
+      3: { halign: 'right' },
+    },
   });
   
   // Forecast
   yPos = (doc as any).lastAutoTable.finalY + 15;
   
-  if (yPos > 250) {
+  if (yPos > 220) {
     doc.addPage();
     yPos = 20;
   }
   
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.text('Revenue Forecast', 14, yPos);
   
@@ -180,38 +336,56 @@ export function exportToPDF(data: ExportData): void {
     body: [
       ['Projected Revenue', formatCurrency(forecast.projectedRevenue)],
       ['Projected COGS', formatCurrency(forecast.projectedCOGS)],
-      ['Projected Profit', formatCurrency(forecast.projectedProfit)],
+      ['Projected Profit', { content: formatCurrency(forecast.projectedProfit), styles: { textColor: COLORS.success as [number, number, number] } }],
       ['Growth Rate', `${forecast.growthRate.toFixed(1)}%`],
-      ['Trend', forecast.trendDirection],
-      ['Confidence', forecast.confidence],
+      ['Trend', forecast.trendDirection.charAt(0).toUpperCase() + forecast.trendDirection.slice(1)],
+      ['Confidence', forecast.confidence.charAt(0).toUpperCase() + forecast.confidence.slice(1)],
     ],
     theme: 'striped',
-    headStyles: { fillColor: [14, 165, 233] },
+    headStyles: { fillColor: COLORS.chart7 as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 247, 250] },
+    styles: { fontSize: 10, cellPadding: 4 },
+    columnStyles: {
+      1: { halign: 'right' },
+    },
   });
   
   // Low Stock Items (if any)
   if (lowStockItems.length > 0) {
     doc.addPage();
     
-    doc.setFontSize(14);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('Low Stock Alerts', 14, 20);
     
-    const lowStockData = lowStockItems.slice(0, 20).map(item => [
+    const lowStockData = lowStockItems.slice(0, 25).map(item => [
       item.name,
       item.department,
       `${item.currentStock} ${item.unit}`,
       `${item.minStockLevel} ${item.unit}`,
-      `${item.percentBelowMin.toFixed(0)}%`,
+      { content: `${item.percentBelowMin.toFixed(0)}% below`, styles: { textColor: COLORS.danger as [number, number, number] } },
     ]);
     
     autoTable(doc, {
       startY: 24,
-      head: [['Item', 'Department', 'Current', 'Min Required', 'Below %']],
+      head: [['Item', 'Department', 'Current', 'Min Required', 'Status']],
       body: lowStockData,
       theme: 'striped',
-      headStyles: { fillColor: [245, 158, 11] },
+      headStyles: { fillColor: COLORS.warning as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [255, 251, 235] },
+      styles: { fontSize: 9, cellPadding: 3 },
     });
+  }
+  
+  // Footer with page numbers
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(9);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+    doc.text(hotelName || 'Hotel P/L Report', 14, doc.internal.pageSize.getHeight() - 10);
+    doc.text(format(new Date(), 'MMM dd, yyyy'), pageWidth - 14 - doc.getTextWidth(format(new Date(), 'MMM dd, yyyy')), doc.internal.pageSize.getHeight() - 10);
   }
   
   // Save PDF
@@ -219,19 +393,20 @@ export function exportToPDF(data: ExportData): void {
 }
 
 export function exportToExcel(data: ExportData): void {
-  const { summary, departments, inventoryValuation, lowStockItems, forecast, expenses, frontOffice, dateRange, currencySymbol } = data;
+  const { summary, departments, inventoryValuation, lowStockItems, forecast, expenses, expenseBreakdown, departmentExpenses, budgetComparisons, frontOffice, dateRange, hotelName, currencySymbol } = data;
   
   const workbook = XLSX.utils.book_new();
   
   // Summary Sheet
   const summarySheet = XLSX.utils.aoa_to_sheet([
-    ['Hotel P/L Report'],
+    [hotelName || 'Hotel P/L Report'],
     [`Period: ${format(dateRange.start, 'MMM dd, yyyy')} - ${format(dateRange.end, 'MMM dd, yyyy')}`],
     [''],
     ['Executive Summary'],
     ['Metric', 'Value'],
     ['Total Revenue', summary.totalRevenue],
     ['Total COGS', summary.totalCOGS],
+    ['Total Tax', summary.totalTax],
     ['Gross Profit', summary.grossProfit],
     ['Gross Margin %', summary.grossMargin],
     ['Net Profit', summary.netProfit],
@@ -242,12 +417,14 @@ export function exportToExcel(data: ExportData): void {
   XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
   
   // Department Performance Sheet
-  const deptHeaders = ['Department', 'Revenue', 'COGS', 'Gross Profit', 'Margin %', 'Orders', 'Avg Order', 'Trend %'];
+  const deptHeaders = ['Department', 'Revenue', 'COGS', 'Tax', 'Gross Profit', 'Net Profit', 'Margin %', 'Orders', 'Avg Order', 'Trend %'];
   const deptRows = departments.map(d => [
     d.displayName,
     d.revenue,
     d.cogs,
+    d.tax,
     d.grossProfit,
+    d.netProfit,
     d.margin,
     d.orderCount,
     d.avgOrderValue,
@@ -268,14 +445,63 @@ export function exportToExcel(data: ExportData): void {
     XLSX.utils.book_append_sheet(workbook, foSheet, 'Front Office');
   }
   
-  // Expenses Sheet (if available)
+  // Expenses Sheet (detailed)
   if (expenses && expenses.length > 0) {
-    const expHeaders = ['Category', 'Amount'];
-    const expRows = expenses.map(e => [e.category, e.amount]);
-    const expTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
-    expRows.push(['Total', expTotal]);
+    const expHeaders = ['Date', 'Category', 'Department', 'Description', 'Amount', 'Recurring'];
+    const expRows = expenses.map(e => [
+      e.date,
+      e.category.charAt(0).toUpperCase() + e.category.slice(1),
+      e.department || 'General',
+      e.description,
+      e.amount,
+      e.recurring ? 'Yes' : 'No',
+    ]);
     const expSheet = XLSX.utils.aoa_to_sheet([expHeaders, ...expRows]);
-    XLSX.utils.book_append_sheet(workbook, expSheet, 'Expenses');
+    XLSX.utils.book_append_sheet(workbook, expSheet, 'Expense Details');
+  }
+  
+  // Expense Breakdown Sheet
+  if (expenseBreakdown && expenseBreakdown.length > 0) {
+    const expTotal = expenseBreakdown.reduce((sum, e) => sum + e.amount, 0);
+    const breakdownHeaders = ['Category', 'Amount', '% of Total'];
+    const breakdownRows = expenseBreakdown.map(e => [
+      e.category.charAt(0).toUpperCase() + e.category.slice(1),
+      e.amount,
+      ((e.amount / expTotal) * 100).toFixed(1),
+    ]);
+    breakdownRows.push(['Total', expTotal, 100]);
+    const breakdownSheet = XLSX.utils.aoa_to_sheet([breakdownHeaders, ...breakdownRows]);
+    XLSX.utils.book_append_sheet(workbook, breakdownSheet, 'Expense Summary');
+  }
+  
+  // Department Expenses Sheet
+  if (departmentExpenses && departmentExpenses.length > 0) {
+    const deptExpHeaders = ['Department', 'Total Expenses'];
+    const deptExpRows = departmentExpenses.map(d => [d.displayName, d.total]);
+    const deptExpSheet = XLSX.utils.aoa_to_sheet([deptExpHeaders, ...deptExpRows]);
+    XLSX.utils.book_append_sheet(workbook, deptExpSheet, 'Dept Expenses');
+  }
+  
+  // Budget vs Actual Sheet
+  if (budgetComparisons && budgetComparisons.some(bc => bc.revenueTarget > 0)) {
+    const budgetHeaders = ['Department', 'Revenue Target', 'Revenue Actual', 'Revenue %', 'Revenue Variance', 'COGS Target', 'COGS Actual', 'COGS %', 'Profit Target', 'Profit Actual', 'Profit %'];
+    const budgetRows = budgetComparisons
+      .filter(bc => bc.revenueTarget > 0)
+      .map(bc => [
+        bc.displayName,
+        bc.revenueTarget,
+        bc.revenueActual,
+        bc.revenuePercent,
+        bc.revenueVariance,
+        bc.cogsTarget,
+        bc.cogsActual,
+        bc.cogsPercent,
+        bc.profitTarget,
+        bc.profitActual,
+        bc.profitPercent,
+      ]);
+    const budgetSheet = XLSX.utils.aoa_to_sheet([budgetHeaders, ...budgetRows]);
+    XLSX.utils.book_append_sheet(workbook, budgetSheet, 'Budget vs Actual');
   }
   
   // Inventory Sheet
