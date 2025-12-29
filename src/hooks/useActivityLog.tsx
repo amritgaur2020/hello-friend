@@ -12,6 +12,71 @@ interface LogActivityParams {
   newData?: Json;
 }
 
+// Format order items into a readable list
+function formatOrderItems(items: unknown[]): string {
+  if (!items || items.length === 0) return '';
+  
+  const itemDescriptions = items.map(item => {
+    const i = item as { item_name?: string; quantity?: number; unit_price?: number };
+    const name = i.item_name || 'Unknown item';
+    const qty = i.quantity || 1;
+    const price = i.unit_price;
+    if (price !== undefined) {
+      return `${qty}x ${name} @₹${price}`;
+    }
+    return `${qty}x ${name}`;
+  });
+  
+  return itemDescriptions.join(', ');
+}
+
+// Format complete order description
+function formatOrderDescription(order: Record<string, unknown>, items?: unknown[]): string {
+  const parts: string[] = [];
+  
+  // Order type
+  if (order.order_type) {
+    const type = String(order.order_type).replace(/_/g, ' ');
+    parts.push(`Type: ${type}`);
+  }
+  
+  // Table number
+  if (order.table_number) {
+    parts.push(`Table: ${order.table_number}`);
+  }
+  
+  // Status
+  if (order.status) {
+    parts.push(`Status: ${order.status}`);
+  }
+  
+  // Payment
+  if (order.payment_status) {
+    parts.push(`Payment: ${order.payment_status}`);
+  }
+  if (order.payment_mode) {
+    parts.push(`Payment Mode: ${order.payment_mode}`);
+  }
+  
+  // Total amount
+  if (order.total_amount !== undefined && order.total_amount !== null) {
+    parts.push(`Total: ₹${order.total_amount}`);
+  }
+  
+  // Items - show complete list
+  const orderItems = items || (order.items as unknown[]) || (order.order_items as unknown[]);
+  if (orderItems && Array.isArray(orderItems) && orderItems.length > 0) {
+    parts.push(`Items: ${formatOrderItems(orderItems)}`);
+  }
+  
+  // Notes
+  if (order.notes) {
+    parts.push(`Notes: ${order.notes}`);
+  }
+  
+  return parts.join(' | ');
+}
+
 // Field labels for human-readable output across all modules
 const fieldLabels: Record<string, string> = {
   // Common fields
@@ -183,7 +248,7 @@ function getFieldLabel(key: string): string {
 }
 
 // Compare oldData and newData to generate human-readable changes
-function formatChanges(oldData: Json, newData: Json): string {
+function formatChanges(oldData: Json, newData: Json, recordType?: string): string {
   if (!oldData && !newData) return '';
   
   const changes: string[] = [];
@@ -191,8 +256,19 @@ function formatChanges(oldData: Json, newData: Json): string {
   // Handle creation (no oldData)
   if (!oldData && newData && typeof newData === 'object' && !Array.isArray(newData)) {
     const newObj = newData as Record<string, unknown>;
+    
+    // Check if this is an order record - use complete order formatter
+    const isOrder = recordType === 'order' || 
+                    recordType === 'bar_orders' || 
+                    'order_number' in newObj || 
+                    'order_type' in newObj;
+    
+    if (isOrder) {
+      return formatOrderDescription(newObj, newObj.items as unknown[] | undefined);
+    }
+    
     const relevantFields = Object.keys(newObj).filter(key => 
-      !['id', 'created_at', 'updated_at', 'user_id', 'hotel_id'].includes(key) &&
+      !['id', 'created_at', 'updated_at', 'user_id', 'hotel_id', 'items'].includes(key) &&
       newObj[key] !== null && newObj[key] !== undefined
     );
     if (relevantFields.length > 0) {
@@ -283,7 +359,7 @@ export function useActivityLog() {
       
       // Add human-readable changes if available
       if (oldData || newData) {
-        const changesText = formatChanges(oldData ?? null, newData ?? null);
+        const changesText = formatChanges(oldData ?? null, newData ?? null, recordType);
         if (changesText) {
           fullDescription += ` - ${changesText}`;
         }

@@ -267,12 +267,13 @@ export function useKitchenMutations() {
 
       if (itemsError) throw itemsError;
 
-      return newOrder;
+      return { order: newOrder, items: orderItems };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['kitchen-orders'] });
       toast({ title: 'Kitchen order created' });
-      logActivity({ actionType: 'create', module: 'kitchen', description: `created order ${data.order_number}`, recordType: 'order', recordId: data.id, newData: data as unknown as Json });
+      const orderWithItems = { ...data.order, items: data.items };
+      logActivity({ actionType: 'create', module: 'kitchen', description: `created order ${data.order.order_number}`, recordType: 'order', recordId: data.order.id, newData: orderWithItems as unknown as Json });
     },
   });
 
@@ -715,13 +716,14 @@ export function useRestaurantMutations() {
         }
       }
 
-      return newOrder;
+      return { order: newOrder, items: orderItems };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['restaurant-orders'] });
       queryClient.invalidateQueries({ queryKey: ['restaurant-inventory'] });
       toast({ title: 'Restaurant order created' });
-      logActivity({ actionType: 'create', module: 'restaurant', description: `created order ${data.order_number}`, recordType: 'order', recordId: data.id, newData: data as unknown as Json });
+      const orderWithItems = { ...data.order, items: data.items };
+      logActivity({ actionType: 'create', module: 'restaurant', description: `created order ${data.order.order_number}`, recordType: 'order', recordId: data.order.id, newData: orderWithItems as unknown as Json });
     },
   });
 
