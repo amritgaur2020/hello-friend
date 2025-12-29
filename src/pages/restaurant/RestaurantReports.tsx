@@ -6,7 +6,7 @@ import { SalesReportContent } from "@/components/reports/SalesReportContent";
 import { ItemsReportContent } from "@/components/reports/ItemsReportContent";
 import { StockReportContent } from "@/components/reports/StockReportContent";
 import { OrderHistoryContent } from "@/components/reports/OrderHistoryContent";
-import { useRestaurantOrders, useRestaurantInventory, useRestaurantOrderItemsAll, useRestaurantMenu, useRestaurantMutations } from "@/hooks/useDepartmentData";
+import { useRestaurantOrders, useRestaurantInventory, useRestaurantOrderItemsAll, useRestaurantMenuAll, useRestaurantMutations } from "@/hooks/useDepartmentData";
 import { useHotelSettings } from "@/hooks/useHotelSettings";
 import { isWithinInterval, parseISO } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +20,7 @@ export default function RestaurantReports() {
   const { data: orders = [] } = useRestaurantOrders();
   const { data: inventory = [] } = useRestaurantInventory();
   const { data: orderItems = [] } = useRestaurantOrderItemsAll();
-  const { data: menuItems = [] } = useRestaurantMenu();
+  const { data: menuItems = [] } = useRestaurantMenuAll();
   const { updateOrder } = useRestaurantMutations();
   const { settings } = useHotelSettings();
   const currencySymbol = settings?.currency_symbol || "₹";

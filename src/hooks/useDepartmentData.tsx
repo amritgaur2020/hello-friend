@@ -83,6 +83,22 @@ export function useKitchenMenu() {
   });
 }
 
+// Fetch ALL kitchen menu items including unavailable ones (for accurate COGS calculation in reports)
+export function useKitchenMenuAll() {
+  return useQuery({
+    queryKey: ['kitchen-menu-all'],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('kitchen_menu_items')
+        .select('*')
+        .order('category')
+        .order('name') as any);
+      if (error) throw error;
+      return data as DepartmentMenuItem[];
+    },
+  });
+}
+
 export function useKitchenOrders(status?: string) {
   return useQuery({
     queryKey: ['kitchen-orders', status],
@@ -505,6 +521,22 @@ export function useRestaurantMenu() {
         .from('restaurant_menu_items')
         .select('*')
         .eq('is_available', true)
+        .order('category')
+        .order('name') as any);
+      if (error) throw error;
+      return data as DepartmentMenuItem[];
+    },
+  });
+}
+
+// Fetch ALL restaurant menu items including unavailable ones (for accurate COGS calculation in reports)
+export function useRestaurantMenuAll() {
+  return useQuery({
+    queryKey: ['restaurant-menu-all'],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('restaurant_menu_items')
+        .select('*')
         .order('category')
         .order('name') as any);
       if (error) throw error;

@@ -6,7 +6,7 @@ import { SalesReportContent } from "@/components/reports/SalesReportContent";
 import { ItemsReportContent } from "@/components/reports/ItemsReportContent";
 import { StockReportContent } from "@/components/reports/StockReportContent";
 import { OrderHistoryContent } from "@/components/reports/OrderHistoryContent";
-import { useKitchenOrders, useKitchenInventory, useKitchenOrderItemsAll, useKitchenMenu, useKitchenMutations } from "@/hooks/useDepartmentData";
+import { useKitchenOrders, useKitchenInventory, useKitchenOrderItemsAll, useKitchenMenuAll, useKitchenMutations } from "@/hooks/useDepartmentData";
 import { useHotelSettings } from "@/hooks/useHotelSettings";
 import { isWithinInterval, parseISO } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +20,7 @@ export default function KitchenReports() {
   const { data: orders = [] } = useKitchenOrders();
   const { data: inventory = [] } = useKitchenInventory();
   const { data: orderItems = [] } = useKitchenOrderItemsAll();
-  const { data: menuItems = [] } = useKitchenMenu();
+  const { data: menuItems = [] } = useKitchenMenuAll();
   const { updateOrder } = useKitchenMutations();
   const { settings } = useHotelSettings();
   const currencySymbol = settings?.currency_symbol || "₹";
