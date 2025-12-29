@@ -259,6 +259,18 @@ export default function HotelPLReport() {
   };
 
   const handleExportTaxReport = () => {
+    // Build registered address from settings
+    const addressParts = [
+      settings?.address,
+      settings?.city,
+      settings?.state,
+      settings?.pincode || settings?.postal_code
+    ].filter(Boolean);
+    const registeredAddress = addressParts.length > 0 ? addressParts.join(', ') : undefined;
+    
+    // Use GST or PAN as tax identification
+    const taxIdentificationNumber = settings?.gst_number || settings?.pan_number || undefined;
+    
     exportTaxFilingReport({
       summary,
       departments,
@@ -267,6 +279,8 @@ export default function HotelPLReport() {
       hotelName: settings?.hotel_name,
       currencySymbol,
       financialYear: `FY ${format(dateRange?.from || startDate, 'yyyy')}-${format(dateRange?.to || endDate, 'yy')}`,
+      taxIdentificationNumber,
+      registeredAddress,
     });
     toast({ title: 'Tax Filing Report exported successfully' });
   };

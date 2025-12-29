@@ -32,6 +32,7 @@ export interface HotelSettings {
   tax_percentage: number | null;
   gst_number: string | null;
   pan_number: string | null;
+  fssai_number: string | null;
   created_at: string;
   updated_at: string;
 }
