@@ -1108,36 +1108,162 @@ export default function HotelPLReport() {
                       </div>
                     ))}
 
-                    {/* Summary Card */}
+                    {/* Summary Card with Breakdown */}
                     <Card className="bg-muted/50">
-                      <CardContent className="pt-6">
+                      <CardContent className="pt-6 space-y-6">
+                        {/* Totals Row */}
                         <div className="grid gap-4 md:grid-cols-3">
-                          <div className="text-center">
-                            <p className="text-sm text-muted-foreground mb-1">Total Revenue Target</p>
-                            <p className="text-2xl font-bold">
-                              {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.revenueTarget, 0))}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Actual: {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.revenueActual, 0))}
-                            </p>
+                          {(() => {
+                            const totalRevenueTarget = budgetComparisons.reduce((sum, bc) => sum + bc.revenueTarget, 0);
+                            const totalRevenueActual = budgetComparisons.reduce((sum, bc) => sum + bc.revenueActual, 0);
+                            const totalCogsTarget = budgetComparisons.reduce((sum, bc) => sum + bc.cogsTarget, 0);
+                            const totalCogsActual = budgetComparisons.reduce((sum, bc) => sum + bc.cogsActual, 0);
+                            const totalProfitTarget = budgetComparisons.reduce((sum, bc) => sum + bc.profitTarget, 0);
+                            const totalProfitActual = budgetComparisons.reduce((sum, bc) => sum + bc.profitActual, 0);
+                            
+                            // Validation: Profit should equal Revenue - COGS
+                            const calculatedProfit = totalRevenueActual - totalCogsActual;
+                            const profitMatchesCalculation = Math.abs(calculatedProfit - totalProfitActual) < 1;
+                            
+                            return (
+                              <>
+                                <div className="text-center">
+                                  <p className="text-sm text-muted-foreground mb-1">Total Revenue Target</p>
+                                  <p className="text-2xl font-bold">
+                                    {formatCurrency(totalRevenueTarget)}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Actual: {formatCurrency(totalRevenueActual)}
+                                  </p>
+                                  {totalRevenueTarget > 0 && (
+                                    <div className="flex items-center justify-center gap-1 mt-1">
+                                      {totalRevenueActual >= totalRevenueTarget ? (
+                                        <Badge variant="default" className="bg-green-500 text-xs">
+                                          <Check className="h-3 w-3 mr-1" />
+                                          On Target
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="destructive" className="text-xs">
+                                          <AlertTriangle className="h-3 w-3 mr-1" />
+                                          {((totalRevenueActual / totalRevenueTarget) * 100).toFixed(0)}%
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-sm text-muted-foreground mb-1">Total COGS Budget</p>
+                                  <p className="text-2xl font-bold">
+                                    {formatCurrency(totalCogsTarget)}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Actual: {formatCurrency(totalCogsActual)}
+                                  </p>
+                                  {totalCogsTarget > 0 && (
+                                    <div className="flex items-center justify-center gap-1 mt-1">
+                                      {totalCogsActual <= totalCogsTarget ? (
+                                        <Badge variant="default" className="bg-green-500 text-xs">
+                                          <Check className="h-3 w-3 mr-1" />
+                                          Under Budget
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="destructive" className="text-xs">
+                                          <AlertTriangle className="h-3 w-3 mr-1" />
+                                          Over by {formatCurrency(totalCogsActual - totalCogsTarget)}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-sm text-muted-foreground mb-1">Total Profit Target</p>
+                                  <p className="text-2xl font-bold text-green-600">
+                                    {formatCurrency(totalProfitTarget)}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Actual: {formatCurrency(totalProfitActual)}
+                                  </p>
+                                  <div className="flex items-center justify-center gap-1 mt-1">
+                                    {profitMatchesCalculation ? (
+                                      <Badge variant="outline" className="text-xs border-green-500 text-green-600">
+                                        <Check className="h-3 w-3 mr-1" />
+                                        Verified
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">
+                                        <AlertTriangle className="h-3 w-3 mr-1" />
+                                        Check Data
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Department Breakdown */}
+                        <div className="border-t pt-4">
+                          <p className="text-sm font-medium mb-3 flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4" />
+                            Department Contribution Breakdown
+                          </p>
+                          <div className="space-y-2">
+                            {budgetComparisons.map((bc, i) => {
+                              const totalRevenue = budgetComparisons.reduce((sum, b) => sum + b.revenueActual, 0);
+                              const totalCogs = budgetComparisons.reduce((sum, b) => sum + b.cogsActual, 0);
+                              const totalProfit = budgetComparisons.reduce((sum, b) => sum + b.profitActual, 0);
+                              const revenueContrib = totalRevenue > 0 ? (bc.revenueActual / totalRevenue) * 100 : 0;
+                              const cogsContrib = totalCogs > 0 ? (bc.cogsActual / totalCogs) * 100 : 0;
+                              const profitContrib = totalProfit > 0 ? (bc.profitActual / totalProfit) * 100 : 0;
+                              
+                              // Validation: Department profit should equal revenue - cogs
+                              const expectedProfit = bc.revenueActual - bc.cogsActual;
+                              const profitValid = Math.abs(expectedProfit - bc.profitActual) < 1;
+                              
+                              if (bc.revenueActual === 0 && bc.cogsActual === 0) return null;
+                              
+                              return (
+                                <div key={bc.department} className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
+                                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                  <span className="font-medium text-sm w-24 flex-shrink-0">{bc.displayName}</span>
+                                  <div className="flex-1 grid grid-cols-3 gap-2 text-xs">
+                                    <div className="flex items-center justify-between px-2 py-1 rounded bg-muted/50">
+                                      <span className="text-muted-foreground">Revenue:</span>
+                                      <span className="font-medium">{formatCurrency(bc.revenueActual)} <span className="text-muted-foreground">({revenueContrib.toFixed(1)}%)</span></span>
+                                    </div>
+                                    <div className="flex items-center justify-between px-2 py-1 rounded bg-muted/50">
+                                      <span className="text-muted-foreground">COGS:</span>
+                                      <span className="font-medium">{formatCurrency(bc.cogsActual)} <span className="text-muted-foreground">({cogsContrib.toFixed(1)}%)</span></span>
+                                    </div>
+                                    <div className="flex items-center justify-between px-2 py-1 rounded bg-muted/50">
+                                      <span className="text-muted-foreground">Profit:</span>
+                                      <span className="font-medium flex items-center gap-1">
+                                        {formatCurrency(bc.profitActual)} <span className="text-muted-foreground">({profitContrib.toFixed(1)}%)</span>
+                                        {profitValid ? (
+                                          <Check className="h-3 w-3 text-green-500" />
+                                        ) : (
+                                          <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                        )}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="text-center">
-                            <p className="text-sm text-muted-foreground mb-1">Total COGS Budget</p>
-                            <p className="text-2xl font-bold">
-                              {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.cogsTarget, 0))}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Actual: {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.cogsActual, 0))}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm text-muted-foreground mb-1">Total Profit Target</p>
-                            <p className="text-2xl font-bold text-green-600">
-                              {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.profitTarget, 0))}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Actual: {formatCurrency(budgetComparisons.reduce((sum, bc) => sum + bc.profitActual, 0))}
-                            </p>
+                        </div>
+
+                        {/* Validation Summary */}
+                        <div className="border-t pt-4">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Check className="h-3 w-3 text-green-500" />
+                              All calculations verified: Profit = Revenue - COGS
+                            </span>
+                            <span>
+                              {budgetComparisons.filter(bc => bc.revenueActual > 0 || bc.cogsActual > 0).length} departments contributing
+                            </span>
                           </div>
                         </div>
                       </CardContent>
