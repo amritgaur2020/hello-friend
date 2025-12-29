@@ -313,7 +313,8 @@ export function useHotelPLData({
         }
       });
 
-      return totalCOGS;
+      // Round to 2 decimal places to match Restaurant P/L calculation
+      return Math.round(totalCOGS * 100) / 100;
     };
 
     // Calculate department metrics with actual COGS
