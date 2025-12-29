@@ -5,20 +5,66 @@ import { HourlyTrendsContent } from "@/components/reports/HourlyTrendsContent";
 import { SalesReportContent } from "@/components/reports/SalesReportContent";
 import { ItemsReportContent } from "@/components/reports/ItemsReportContent";
 import { StockReportContent } from "@/components/reports/StockReportContent";
-import { useKitchenOrders, useKitchenInventory, useKitchenOrderItemsAll, useKitchenMenu } from "@/hooks/useDepartmentData";
+import { OrderHistoryContent } from "@/components/reports/OrderHistoryContent";
+import { useKitchenOrders, useKitchenInventory, useKitchenOrderItemsAll, useKitchenMenu, useKitchenMutations } from "@/hooks/useDepartmentData";
 import { useHotelSettings } from "@/hooks/useHotelSettings";
 import { isWithinInterval, parseISO } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DepartmentOrder } from "@/types/department";
+import { useToast } from "@/hooks/use-toast";
 
 export default function KitchenReports() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: orders = [] } = useKitchenOrders();
   const { data: inventory = [] } = useKitchenInventory();
   const { data: orderItems = [] } = useKitchenOrderItemsAll();
   const { data: menuItems = [] } = useKitchenMenu();
+  const { updateOrder } = useKitchenMutations();
   const { settings } = useHotelSettings();
   const currencySymbol = settings?.currency_symbol || "₹";
+
+  const handleUpdateOrder = async (orderId: string, updates: any, items?: any[], newItemsToAdd?: any[]) => {
+    await updateOrder.mutateAsync({ id: orderId, ...updates });
+    
+    if (items && items.length > 0) {
+      for (const item of items) {
+        if (!item.id.startsWith('new_')) {
+          const { error } = await supabase
+            .from('kitchen_order_items')
+            .update({
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              total_price: item.total_price,
+            })
+            .eq('id', item.id);
+          
+          if (error) console.error('Error updating item:', error);
+        }
+      }
+    }
+    
+    if (newItemsToAdd && newItemsToAdd.length > 0) {
+      const newItemsData = newItemsToAdd.map(item => ({
+        order_id: orderId,
+        menu_item_id: item.menu_item_id,
+        item_name: item.item_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+      }));
+      
+      const { error } = await supabase.from('kitchen_order_items').insert(newItemsData);
+      if (error) {
+        console.error('Error adding new items:', error);
+        toast({ title: 'Failed to add new items', variant: 'destructive' });
+      }
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ['kitchen-order-items-all'] });
+    queryClient.invalidateQueries({ queryKey: ['kitchen-orders'] });
+  };
 
   // Fetch all orders for comparison (without limit)
   const { data: allOrders = [] } = useQuery({
@@ -96,6 +142,19 @@ export default function KitchenReports() {
                   inventory={inventory}
                   currencySymbol={currencySymbol}
                   department="Kitchen"
+                />
+              );
+            case "history":
+              return (
+                <OrderHistoryContent
+                  orders={filteredOrders}
+                  orderItems={filteredItems}
+                  menuItems={menuItems}
+                  currencySymbol={currencySymbol}
+                  department="Kitchen"
+                  startDate={startDate}
+                  endDate={endDate}
+                  onUpdateOrder={handleUpdateOrder}
                 />
               );
             default:

@@ -307,6 +307,36 @@ export function useKitchenMutations() {
     },
   });
 
+  const updateOrder = useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; order_type?: string; table_number?: string; notes?: string; status?: string; subtotal?: number; tax_amount?: number; discount_amount?: number; total_amount?: number; payment_status?: string; payment_mode?: string }) => {
+      const { data: oldData } = await supabase.from('kitchen_orders').select('*').eq('id', id).single();
+      
+      const { data, error } = await supabase
+        .from('kitchen_orders')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return { newData: data, oldData };
+    },
+    onSuccess: ({ newData, oldData }) => {
+      queryClient.invalidateQueries({ queryKey: ['kitchen-orders'] });
+      toast({ title: 'Order updated successfully' });
+      if (oldData && newData) {
+        logActivity({ 
+          actionType: 'edit', 
+          module: 'kitchen', 
+          description: `updated order ${newData.order_number}`, 
+          recordType: 'order', 
+          recordId: newData.id,
+          oldData: oldData as unknown as Json,
+          newData: newData as unknown as Json 
+        });
+      }
+    },
+  });
+
   const deleteOrder = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const { data: order } = await supabase.from('kitchen_orders').select('*').eq('id', id).single();
@@ -445,7 +475,7 @@ export function useKitchenMutations() {
     },
   });
 
-  return { addInventory, updateInventory, addMenuItem, updateMenuItem, createOrder, updateOrderStatus, deleteOrder, deleteInventory, deleteMenuItem, bulkAddInventory, addTransaction };
+  return { addInventory, updateInventory, addMenuItem, updateMenuItem, createOrder, updateOrder, updateOrderStatus, deleteOrder, deleteInventory, deleteMenuItem, bulkAddInventory, addTransaction };
 }
 
 // =============================================
