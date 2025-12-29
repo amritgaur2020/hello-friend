@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { DepartmentOrder, DepartmentOrderItem } from '@/types/department';
 import { useHotelSettings } from '@/hooks/useHotelSettings';
+import { useTaxSettings, CHARGE_TO_TAX_CATEGORY } from '@/hooks/useTaxSettings';
 import { format } from 'date-fns';
 
 interface RestaurantBillPrintProps {
@@ -11,7 +12,13 @@ interface RestaurantBillPrintProps {
 export const RestaurantBillPrint = forwardRef<HTMLDivElement, RestaurantBillPrintProps>(
   ({ order, items }, ref) => {
     const { settings } = useHotelSettings();
+    const { getConsolidatedTaxBreakdown } = useTaxSettings();
     const currencySymbol = settings?.currency_symbol || '₹';
+
+    // Get dynamic tax breakdown from admin settings
+    const taxBreakdown = getConsolidatedTaxBreakdown([
+      { category: 'Restaurant', total: order.subtotal - (order.discount_amount || 0) }
+    ]);
 
     return (
       <div 
@@ -104,14 +111,23 @@ export const RestaurantBillPrint = forwardRef<HTMLDivElement, RestaurantBillPrin
               <span>- {currencySymbol} {order.discount_amount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between">
-            <span>CGST @9%:</span>
-            <span>{currencySymbol} {(order.tax_amount / 2).toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>SGST @9%:</span>
-            <span>{currencySymbol} {(order.tax_amount / 2).toFixed(2)}</span>
-          </div>
+          {/* Dynamic Tax Breakdown from Admin Settings */}
+          {taxBreakdown.length > 0 ? (
+            taxBreakdown.map((tax, index) => (
+              <div key={index} className="flex justify-between">
+                <span>{tax.name} @{tax.percentage}%:</span>
+                <span>{currencySymbol} {tax.amount.toFixed(2)}</span>
+              </div>
+            ))
+          ) : (
+            // Fallback if no taxes configured - show stored tax
+            order.tax_amount > 0 && (
+              <div className="flex justify-between">
+                <span>Tax:</span>
+                <span>{currencySymbol} {order.tax_amount.toFixed(2)}</span>
+              </div>
+            )
+          )}
           <div className="flex justify-between font-bold text-sm pt-2 border-t-2 border-black mt-2">
             <span>GRAND TOTAL:</span>
             <span>{currencySymbol} {order.total_amount.toFixed(2)}</span>
