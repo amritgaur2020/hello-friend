@@ -5,7 +5,7 @@ import { useHotelPLData, DepartmentPLData } from '@/hooks/useHotelPLData';
 import { useBudgetTargets, calculateBudgetComparisons } from '@/hooks/useBudgetTargets';
 import { useExpenseTracking, EXPENSE_CATEGORIES, DEPARTMENTS_LIST, Expense } from '@/hooks/useExpenseTracking';
 import { useExpenseBudgets, EXPENSE_CATEGORY_LABELS } from '@/hooks/useExpenseBudgets';
-import { exportToPDF, exportToExcel, exportDepartmentBreakdownToPDF, exportDepartmentBreakdownToExcel } from '@/utils/plReportExport';
+import { exportToPDF, exportToExcel, exportDepartmentBreakdownToPDF, exportDepartmentBreakdownToExcel, exportTaxFilingReport } from '@/utils/plReportExport';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AccessDenied } from '@/components/shared/AccessDenied';
@@ -258,6 +258,19 @@ export default function HotelPLReport() {
     toast({ title: 'Excel exported successfully' });
   };
 
+  const handleExportTaxReport = () => {
+    exportTaxFilingReport({
+      summary,
+      departments,
+      expenseBreakdown: Object.entries(expenseSummary).filter(([k]) => k !== 'total').map(([category, amount]) => ({ category, amount: amount as number })),
+      dateRange: { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
+      hotelName: settings?.hotel_name,
+      currencySymbol,
+      financialYear: `FY ${format(dateRange?.from || startDate, 'yyyy')}-${format(dateRange?.to || endDate, 'yy')}`,
+    });
+    toast({ title: 'Tax Filing Report exported successfully' });
+  };
+
   // Budget targets
   const { budgets, saveBudget, getBudgetForMonth, isLoading: budgetsLoading } = useBudgetTargets();
   const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
@@ -418,6 +431,10 @@ export default function HotelPLReport() {
                 <DropdownMenuItem onClick={handleExportExcel}>
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
                   Export as Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportTaxReport}>
+                  <Receipt className="h-4 w-4 mr-2" />
+                  Tax Filing Report
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
