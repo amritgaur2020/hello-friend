@@ -1,18 +1,21 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { 
-  Check, 
-  X, 
-  AlertTriangle, 
+import {
+  Check,
+  X,
+  AlertTriangle,
   GitCompare,
   ChefHat,
   Calculator,
   ArrowRight,
   Info,
   Calendar,
+  ExternalLink,
 } from 'lucide-react';
 import { COGSDebugData } from '@/hooks/useHotelPLData';
 import { format } from 'date-fns';
@@ -45,7 +48,20 @@ export function COGSSyncVerification({
   startDate,
   endDate,
 }: COGSSyncVerificationProps) {
-  const formatCurrency = (amount: number) => `${currencySymbol}${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const navigate = useNavigate();
+  const formatCurrency = (amount: number) =>
+    `${currencySymbol}${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const handleQuickSync = (department: string) => {
+    if (!startDate || !endDate) return;
+
+    const start = format(startDate, 'yyyy-MM-dd');
+    const end = format(endDate, 'yyyy-MM-dd');
+    navigate({
+      pathname: `/${department}/reports`,
+      search: `?tab=pl&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+    });
+  };
   
   const syncResults = useMemo((): SyncResult[] => {
     return cogsDebugData.map((debugDept) => {

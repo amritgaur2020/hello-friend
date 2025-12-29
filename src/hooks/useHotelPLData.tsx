@@ -161,13 +161,13 @@ export function useHotelPLData({
     setError(null);
 
     try {
-      const startStr = format(startOfDay(startDate), "yyyy-MM-dd'T'HH:mm:ss");
-      const endStr = format(endOfDay(endDate), "yyyy-MM-dd'T'HH:mm:ss");
+      const startISO = startOfDay(startDate).toISOString();
+      const endISO = endOfDay(endDate).toISOString();
 
       // Get comparison period dates
       const compPeriod = getComparisonPeriodDates(startDate, endDate, comparisonType);
-      const compStartStr = format(compPeriod.start, "yyyy-MM-dd'T'HH:mm:ss");
-      const compEndStr = format(compPeriod.end, "yyyy-MM-dd'T'HH:mm:ss");
+      const compStartISO = compPeriod.start.toISOString();
+      const compEndISO = compPeriod.end.toISOString();
 
       // Fetch all data in parallel
       const [
@@ -196,14 +196,14 @@ export function useHotelPLData({
         prevSpaBookingsRes,
       ] = await Promise.all([
         // Current period orders
-        supabase.from('bar_orders').select('*').gte('created_at', startStr).lte('created_at', endStr),
-        supabase.from('restaurant_orders').select('*').gte('created_at', startStr).lte('created_at', endStr),
-        supabase.from('kitchen_orders').select('*').gte('created_at', startStr).lte('created_at', endStr),
-        supabase.from('spa_bookings').select('*').gte('created_at', startStr).lte('created_at', endStr).eq('status', 'completed'),
+        supabase.from('bar_orders').select('*').gte('created_at', startISO).lte('created_at', endISO),
+        supabase.from('restaurant_orders').select('*').gte('created_at', startISO).lte('created_at', endISO),
+        supabase.from('kitchen_orders').select('*').gte('created_at', startISO).lte('created_at', endISO),
+        supabase.from('spa_bookings').select('*').gte('created_at', startISO).lte('created_at', endISO).eq('status', 'completed'),
         supabase.from('billing_items').select('*, billing!inner(status)').eq('billing.status', 'paid'),
         // Front Office data
-        supabase.from('check_ins').select('*, room:rooms(room_number, room_type_id), guest:guests(full_name)').gte('check_in_time', startStr).lte('check_in_time', endStr),
-        supabase.from('billing').select('*').gte('created_at', startStr).lte('created_at', endStr),
+        supabase.from('check_ins').select('*, room:rooms(room_number, room_type_id), guest:guests(full_name)').gte('check_in_time', startISO).lte('check_in_time', endISO),
+        supabase.from('billing').select('*').gte('created_at', startISO).lte('created_at', endISO),
         supabase.from('rooms').select('*, room_type:room_types(name, base_price)'),
         // Inventory
         supabase.from('bar_inventory').select('*'),
@@ -220,10 +220,10 @@ export function useHotelPLData({
         supabase.from('restaurant_order_items').select('*'),
         supabase.from('kitchen_order_items').select('*'),
         // Previous period orders for comparison
-        supabase.from('bar_orders').select('*').gte('created_at', compStartStr).lte('created_at', compEndStr),
-        supabase.from('restaurant_orders').select('*').gte('created_at', compStartStr).lte('created_at', compEndStr),
-        supabase.from('kitchen_orders').select('*').gte('created_at', compStartStr).lte('created_at', compEndStr),
-        supabase.from('spa_bookings').select('*').gte('created_at', compStartStr).lte('created_at', compEndStr).eq('status', 'completed'),
+        supabase.from('bar_orders').select('*').gte('created_at', compStartISO).lte('created_at', compEndISO),
+        supabase.from('restaurant_orders').select('*').gte('created_at', compStartISO).lte('created_at', compEndISO),
+        supabase.from('kitchen_orders').select('*').gte('created_at', compStartISO).lte('created_at', compEndISO),
+        supabase.from('spa_bookings').select('*').gte('created_at', compStartISO).lte('created_at', compEndISO).eq('status', 'completed'),
       ]);
 
       setRawData({
