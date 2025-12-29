@@ -7,6 +7,7 @@ import { useExpenseTracking, EXPENSE_CATEGORIES, DEPARTMENTS_LIST, Expense } fro
 import { useExpenseBudgets, EXPENSE_CATEGORY_LABELS } from '@/hooks/useExpenseBudgets';
 import { exportToPDF, exportToExcel, exportDepartmentBreakdownToPDF, exportDepartmentBreakdownToExcel, exportTaxFilingReport } from '@/utils/plReportExport';
 import { ComparativePLReport } from '@/components/reports/ComparativePLReport';
+import { TrendAnalysisCharts } from '@/components/reports/TrendAnalysisCharts';
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AccessDenied } from '@/components/shared/AccessDenied';
@@ -554,9 +555,10 @@ export default function HotelPLReport() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-9">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
+            <TabsTrigger value="trends">Trends</TabsTrigger>
             <TabsTrigger value="comparative">YoY/QoQ</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="budgets">Budgets</TabsTrigger>
@@ -564,6 +566,10 @@ export default function HotelPLReport() {
             <TabsTrigger value="forecasting">Forecasting</TabsTrigger>
             <TabsTrigger value="inventory">Inventory</TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="trends" className="space-y-6">
+            <TrendAnalysisCharts />
+          </TabsContent>
           
           <TabsContent value="comparative" className="space-y-6">
             <ComparativePLReport />
