@@ -412,10 +412,9 @@ export default function HotelPLReport() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
-            <TabsTrigger value="frontoffice">Front Office</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="budgets">Budgets</TabsTrigger>
             <TabsTrigger value="comparison">Comparison</TabsTrigger>
@@ -524,10 +523,11 @@ export default function HotelPLReport() {
                           <th className="text-left py-3 px-2 font-medium">Department</th>
                           <th className="text-right py-3 px-2 font-medium">Revenue</th>
                           <th className="text-right py-3 px-2 font-medium">COGS</th>
+                          <th className="text-right py-3 px-2 font-medium">GST/Tax</th>
                           <th className="text-right py-3 px-2 font-medium">Gross Profit</th>
+                          <th className="text-right py-3 px-2 font-medium">Net Profit</th>
                           <th className="text-right py-3 px-2 font-medium">Margin</th>
                           <th className="text-right py-3 px-2 font-medium">Orders</th>
-                          <th className="text-right py-3 px-2 font-medium">Avg Order</th>
                           <th className="text-right py-3 px-2 font-medium">Trend</th>
                         </tr>
                       </thead>
@@ -542,14 +542,15 @@ export default function HotelPLReport() {
                             </td>
                             <td className="text-right py-3 px-2 font-medium">{formatCurrency(dept.revenue)}</td>
                             <td className="text-right py-3 px-2">{formatCurrency(dept.cogs)}</td>
-                            <td className="text-right py-3 px-2 text-green-600">{formatCurrency(dept.grossProfit)}</td>
+                            <td className="text-right py-3 px-2 text-orange-600">{formatCurrency(dept.tax)}</td>
+                            <td className="text-right py-3 px-2">{formatCurrency(dept.grossProfit)}</td>
+                            <td className="text-right py-3 px-2 text-green-600">{formatCurrency(dept.netProfit)}</td>
                             <td className="text-right py-3 px-2">
                               <Badge variant={dept.margin >= 60 ? 'default' : dept.margin >= 40 ? 'secondary' : 'destructive'}>
                                 {dept.margin.toFixed(1)}%
                               </Badge>
                             </td>
                             <td className="text-right py-3 px-2">{dept.orderCount}</td>
-                            <td className="text-right py-3 px-2">{formatCurrency(dept.avgOrderValue)}</td>
                             <td className="text-right py-3 px-2">
                               <div className="flex items-center justify-end gap-1">
                                 <TrendIcon value={dept.trend} />
@@ -565,16 +566,159 @@ export default function HotelPLReport() {
                           <td className="py-3 px-2">Total</td>
                           <td className="text-right py-3 px-2">{formatCurrency(summary.totalRevenue)}</td>
                           <td className="text-right py-3 px-2">{formatCurrency(summary.totalCOGS)}</td>
-                          <td className="text-right py-3 px-2 text-green-600">{formatCurrency(summary.grossProfit)}</td>
+                          <td className="text-right py-3 px-2 text-orange-600">{formatCurrency(summary.totalTax)}</td>
+                          <td className="text-right py-3 px-2">{formatCurrency(summary.grossProfit)}</td>
+                          <td className="text-right py-3 px-2 text-green-600">{formatCurrency(summary.netProfit)}</td>
                           <td className="text-right py-3 px-2">
                             <Badge>{summary.grossMargin.toFixed(1)}%</Badge>
                           </td>
                           <td className="text-right py-3 px-2">{summary.totalOrders}</td>
-                          <td className="text-right py-3 px-2">{formatCurrency(summary.avgOrderValue)}</td>
                           <td className="text-right py-3 px-2">-</td>
                         </tr>
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Expenses Tab */}
+          <TabsContent value="expenses" className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-3">
+              {/* Expense Entry Form */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Receipt className="h-5 w-5" />
+                    Add Expense
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Select value={newExpense.category} onValueChange={(v: any) => setNewExpense({ ...newExpense, category: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXPENSE_CATEGORIES.map(cat => (
+                          <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Input 
+                      placeholder="e.g., Electricity bill" 
+                      value={newExpense.description}
+                      onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Amount ({currencySymbol})</Label>
+                    <Input 
+                      type="number" 
+                      placeholder="0" 
+                      value={newExpense.amount}
+                      onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input 
+                      type="date" 
+                      value={newExpense.date}
+                      onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+                    />
+                  </div>
+                  <Button className="w-full" onClick={handleAddExpense}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Expense
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Category Breakdown */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Expense Breakdown</CardTitle>
+                  <CardDescription>Total expenses: {formatCurrency(totalExpenses)}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3">
+                      {EXPENSE_CATEGORIES.map(cat => {
+                        const catExpenses = periodExpenses.filter(e => e.category === cat.value);
+                        const catTotal = catExpenses.reduce((sum, e) => sum + e.amount, 0);
+                        const percentage = totalExpenses > 0 ? (catTotal / totalExpenses) * 100 : 0;
+                        return (
+                          <div key={cat.value} className="space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <span>{cat.label}</span>
+                              <span className="font-medium">{formatCurrency(catTotal)}</span>
+                            </div>
+                            <Progress value={percentage} className="h-2" />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <RePieChart>
+                        <Pie
+                          data={EXPENSE_CATEGORIES.map((cat, i) => ({
+                            name: cat.label,
+                            value: periodExpenses.filter(e => e.category === cat.value).reduce((sum, e) => sum + e.amount, 0),
+                            color: COLORS[i % COLORS.length],
+                          })).filter(d => d.value > 0)}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={80}
+                          dataKey="value"
+                        >
+                          {EXPENSE_CATEGORIES.map((_, i) => (
+                            <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      </RePieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Expense List */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Expense History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {periodExpenses.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No expenses recorded for this period
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {periodExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(expense => (
+                      <div key={expense.id} className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline">{EXPENSE_CATEGORIES.find(c => c.value === expense.category)?.label}</Badge>
+                          <div>
+                            <p className="font-medium">{expense.description}</p>
+                            <p className="text-sm text-muted-foreground">{format(new Date(expense.date), 'MMM dd, yyyy')}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold">{formatCurrency(expense.amount)}</span>
+                          <Button variant="ghost" size="icon" onClick={() => deleteExpense(expense.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
