@@ -1,0 +1,283 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Hotel Front Office Management System - Design System
+   Inspired by Taste Paradise POS - Deep Orange theme with pastel cards
+   All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Main background - Light gray */
+    --background: 220 14% 96%;
+    --foreground: 222 47% 11%;
+
+    /* Cards - Pure white */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary - Deep Orange (from POS) */
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Light gray */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    /* Muted */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Accent - Lighter orange */
+    --accent: 24 100% 95%;
+    --accent-foreground: 24 95% 40%;
+
+    /* Destructive - Red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Success - Green */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning - Amber */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Info - Blue */
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
+
+    /* Border & Input */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 24 95% 53%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar - Dark charcoal (from POS) */
+    --sidebar-background: 220 20% 14%;
+    --sidebar-foreground: 220 14% 96%;
+    --sidebar-primary: 24 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 20%;
+    --sidebar-accent-foreground: 220 14% 96%;
+    --sidebar-border: 220 20% 20%;
+    --sidebar-ring: 24 95% 53%;
+
+    /* Dashboard stat cards - Pastel colors (from POS) */
+    --stat-blue: 217 91% 95%;
+    --stat-blue-foreground: 217 91% 45%;
+    --stat-yellow: 45 93% 90%;
+    --stat-yellow-foreground: 45 93% 35%;
+    --stat-coral: 12 100% 93%;
+    --stat-coral-foreground: 12 76% 45%;
+    --stat-peach: 24 100% 93%;
+    --stat-peach-foreground: 24 95% 40%;
+    --stat-green: 142 76% 92%;
+    --stat-green-foreground: 142 71% 35%;
+    --stat-purple: 270 67% 93%;
+    --stat-purple-foreground: 270 67% 45%;
+
+    /* Room status colors */
+    --status-available: 142 71% 45%;
+    --status-occupied: 0 84% 60%;
+    --status-reserved: 45 93% 50%;
+    --status-cleaning: 217 91% 60%;
+    --status-maintenance: 270 67% 55%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 220 14% 96%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 220 14% 96%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 220 14% 96%;
+
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 20%;
+    --secondary-foreground: 220 14% 96%;
+
+    --muted: 220 20% 20%;
+    --muted-foreground: 220 9% 65%;
+
+    --accent: 24 100% 15%;
+    --accent-foreground: 24 95% 70%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 217 91% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 20% 20%;
+    --input: 220 20% 20%;
+    --ring: 24 95% 53%;
+
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 220 14% 96%;
+    --sidebar-primary: 24 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 47% 11%;
+    --sidebar-accent-foreground: 220 14% 96%;
+    --sidebar-border: 222 47% 11%;
+    --sidebar-ring: 24 95% 53%;
+
+    --stat-blue: 217 91% 20%;
+    --stat-blue-foreground: 217 91% 70%;
+    --stat-yellow: 45 93% 20%;
+    --stat-yellow-foreground: 45 93% 70%;
+    --stat-coral: 12 76% 20%;
+    --stat-coral-foreground: 12 76% 70%;
+    --stat-peach: 24 95% 20%;
+    --stat-peach-foreground: 24 95% 70%;
+    --stat-green: 142 71% 20%;
+    --stat-green-foreground: 142 71% 70%;
+    --stat-purple: 270 67% 20%;
+    --stat-purple-foreground: 270 67% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-muted rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50;
+  }
+}
+
+@layer components {
+  /* Stat card variants */
+  .stat-card-blue {
+    @apply bg-[hsl(var(--stat-blue))] text-[hsl(var(--stat-blue-foreground))];
+  }
+
+  .stat-card-yellow {
+    @apply bg-[hsl(var(--stat-yellow))] text-[hsl(var(--stat-yellow-foreground))];
+  }
+
+  .stat-card-coral {
+    @apply bg-[hsl(var(--stat-coral))] text-[hsl(var(--stat-coral-foreground))];
+  }
+
+  .stat-card-peach {
+    @apply bg-[hsl(var(--stat-peach))] text-[hsl(var(--stat-peach-foreground))];
+  }
+
+  .stat-card-green {
+    @apply bg-[hsl(var(--stat-green))] text-[hsl(var(--stat-green-foreground))];
+  }
+
+  .stat-card-purple {
+    @apply bg-[hsl(var(--stat-purple))] text-[hsl(var(--stat-purple-foreground))];
+  }
+
+  /* Room status badges */
+  .status-available {
+    @apply bg-[hsl(var(--status-available))] text-white;
+  }
+
+  .status-occupied {
+    @apply bg-[hsl(var(--status-occupied))] text-white;
+  }
+
+  .status-reserved {
+    @apply bg-[hsl(var(--status-reserved))] text-white;
+  }
+
+  .status-cleaning {
+    @apply bg-[hsl(var(--status-cleaning))] text-white;
+  }
+
+  .status-maintenance {
+    @apply bg-[hsl(var(--status-maintenance))] text-white;
+  }
+
+  /* Glass effect for cards */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-sm border border-border/50 shadow-lg;
+  }
+
+  /* Gradient button */
+  .btn-gradient {
+    @apply bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg shadow-primary/25 transition-all;
+  }
+}
+
+@layer utilities {
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+}

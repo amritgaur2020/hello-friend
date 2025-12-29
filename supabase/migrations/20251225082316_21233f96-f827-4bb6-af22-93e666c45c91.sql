@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Allow first admin creation when none exists" ON public.user_roles;
