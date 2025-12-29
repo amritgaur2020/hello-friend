@@ -46,6 +46,8 @@ export function ReportsLayout({
 }: ReportsLayoutProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab') as ReportType | null;
+  const startFromUrl = searchParams.get('start');
+  const endFromUrl = searchParams.get('end');
   
   const [activeReport, setActiveReport] = useState<ReportType>(tabFromUrl || defaultReport);
   const [dateRange, setDateRange] = useState<DateRangeType>(tabFromUrl === 'history' ? '30days' : 'today');
@@ -53,7 +55,7 @@ export function ReportsLayout({
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [comparisonType, setComparisonType] = useState<ComparisonType>('previous');
 
-  // Sync URL param with state
+  // Sync URL params with state
   useEffect(() => {
     if (tabFromUrl && tabFromUrl !== activeReport) {
       setActiveReport(tabFromUrl);
@@ -61,7 +63,15 @@ export function ReportsLayout({
         setDateRange('30days');
       }
     }
-  }, [tabFromUrl]);
+
+    // Quick Sync support: ?start=YYYY-MM-DD&end=YYYY-MM-DD
+    if (startFromUrl && endFromUrl) {
+      const from = new Date(`${startFromUrl}T00:00:00`);
+      const to = new Date(`${endFromUrl}T23:59:59.999`);
+      setCustomDateRange({ from, to });
+      setDateRange('custom');
+    }
+  }, [tabFromUrl, startFromUrl, endFromUrl]);
 
   const handleReportChange = (report: ReportType) => {
     setActiveReport(report);
