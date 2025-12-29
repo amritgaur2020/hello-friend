@@ -1470,3 +1470,332 @@ export function exportTaxFilingReport(data: TaxReportData): void {
   
   doc.save(`Tax-PL-Statement-${format(dateRange.start, 'yyyy-MM')}.pdf`);
 }
+
+// ============ COMPARATIVE P&L REPORT ============
+
+interface ComparativeVariance {
+  metric: string;
+  current: number;
+  previous: number;
+  change: number;
+  changePercent: number;
+  isPositive: boolean;
+}
+
+interface PeriodPLData {
+  label: string;
+  dateRange: { start: Date; end: Date };
+  revenue: number;
+  cogs: number;
+  grossProfit: number;
+  grossMargin: number;
+  tax: number;
+  netProfit: number;
+  netMargin: number;
+  orderCount: number;
+  avgOrderValue: number;
+  departments: {
+    department: string;
+    displayName: string;
+    revenue: number;
+    cogs: number;
+    grossProfit: number;
+    margin: number;
+    orderCount: number;
+  }[];
+}
+
+interface DepartmentVariance {
+  department: string;
+  displayName: string;
+  revenueChange: number;
+  revenueChangePercent: number;
+  profitChange: number;
+  profitChangePercent: number;
+  marginChange: number;
+}
+
+interface ComparativePLReportData {
+  currentPeriod: PeriodPLData;
+  previousPeriod: PeriodPLData;
+  variances: ComparativeVariance[];
+  departmentVariances: DepartmentVariance[];
+  hotelName?: string | null;
+  currencySymbol: string;
+}
+
+export function exportComparativePLReport(data: ComparativePLReportData): void {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const { currentPeriod, previousPeriod, variances, departmentVariances, hotelName, currencySymbol } = data;
+  
+  const formatCurrency = (value: number): string => {
+    if (!isFinite(value) || isNaN(value)) return `${currencySymbol}0`;
+    const num = Math.round(value);
+    const formatted = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `${currencySymbol}${formatted}`;
+  };
+  
+  const formatPercent = (value: number): string => {
+    if (!isFinite(value) || isNaN(value)) return '0%';
+    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+  };
+  
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  
+  // ============ PAGE 1: HEADER & SUMMARY ============
+  
+  // Header bar
+  doc.setFillColor(...COLORS.primary);
+  doc.rect(0, 0, pageWidth, 40, 'F');
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text(hotelName || 'Hotel', margin, 20);
+  
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Comparative P&L Analysis', margin, 30);
+  
+  doc.setFontSize(10);
+  const periodText = `${currentPeriod.label} vs ${previousPeriod.label}`;
+  doc.text(periodText, pageWidth - margin - doc.getTextWidth(periodText), 30);
+  
+  doc.setTextColor(...COLORS.text);
+  
+  let yPos = 55;
+  
+  // Summary Section
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Executive Summary', margin, yPos);
+  yPos += 10;
+  
+  // Summary boxes
+  const boxWidth = (pageWidth - margin * 2 - 10) / 3;
+  const boxHeight = 35;
+  
+  // Revenue box
+  doc.setFillColor(...COLORS.lightGray);
+  doc.roundedRect(margin, yPos, boxWidth, boxHeight, 3, 3, 'F');
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text('Total Revenue', margin + 5, yPos + 10);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...COLORS.text);
+  doc.text(formatCurrency(currentPeriod.revenue), margin + 5, yPos + 22);
+  const revenueVar = variances.find(v => v.metric === 'Revenue');
+  if (revenueVar) {
+    doc.setFontSize(10);
+    const revenueColor = revenueVar.isPositive ? COLORS.success : COLORS.danger;
+    doc.setTextColor(revenueColor[0], revenueColor[1], revenueColor[2]);
+    doc.text(formatPercent(revenueVar.changePercent), margin + 5, yPos + 30);
+  }
+  
+  // Gross Profit box
+  doc.setFillColor(...COLORS.lightGray);
+  doc.roundedRect(margin + boxWidth + 5, yPos, boxWidth, boxHeight, 3, 3, 'F');
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text('Gross Profit', margin + boxWidth + 10, yPos + 10);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...COLORS.text);
+  doc.text(formatCurrency(currentPeriod.grossProfit), margin + boxWidth + 10, yPos + 22);
+  const gpVar = variances.find(v => v.metric === 'Gross Profit');
+  if (gpVar) {
+    doc.setFontSize(10);
+    const gpColor = gpVar.isPositive ? COLORS.success : COLORS.danger;
+    doc.setTextColor(gpColor[0], gpColor[1], gpColor[2]);
+    doc.text(formatPercent(gpVar.changePercent), margin + boxWidth + 10, yPos + 30);
+  }
+  
+  // Net Profit box
+  doc.setFillColor(...COLORS.lightGray);
+  doc.roundedRect(margin + (boxWidth + 5) * 2, yPos, boxWidth, boxHeight, 3, 3, 'F');
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text('Net Profit', margin + (boxWidth + 5) * 2 + 5, yPos + 10);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...COLORS.text);
+  doc.text(formatCurrency(currentPeriod.netProfit), margin + (boxWidth + 5) * 2 + 5, yPos + 22);
+  const npVar = variances.find(v => v.metric === 'Net Profit');
+  if (npVar) {
+    doc.setFontSize(10);
+    const npColor = npVar.isPositive ? COLORS.success : COLORS.danger;
+    doc.setTextColor(npColor[0], npColor[1], npColor[2]);
+    doc.text(formatPercent(npVar.changePercent), margin + (boxWidth + 5) * 2 + 5, yPos + 30);
+  }
+  
+  yPos += boxHeight + 15;
+  
+  // Variance Analysis Table
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...COLORS.text);
+  doc.text('Variance Analysis', margin, yPos);
+  yPos += 5;
+  
+  autoTable(doc, {
+    startY: yPos,
+    head: [[
+      'Metric',
+      currentPeriod.label,
+      previousPeriod.label,
+      'Change',
+      'Change %',
+      'Trend'
+    ]],
+    body: variances.map(v => [
+      v.metric,
+      v.metric.includes('%') ? `${v.current.toFixed(1)}%` : formatCurrency(v.current),
+      v.metric.includes('%') ? `${v.previous.toFixed(1)}%` : formatCurrency(v.previous),
+      v.metric.includes('%') 
+        ? `${v.change >= 0 ? '+' : ''}${v.change.toFixed(1)}pp`
+        : `${v.change >= 0 ? '+' : ''}${formatCurrency(v.change)}`,
+      formatPercent(v.changePercent),
+      v.change === 0 ? '—' : v.isPositive ? '↑' : '↓'
+    ]),
+    theme: 'striped',
+    headStyles: { fillColor: COLORS.primary, fontSize: 9, fontStyle: 'bold' },
+    bodyStyles: { fontSize: 9 },
+    columnStyles: {
+      0: { fontStyle: 'bold' },
+      5: { halign: 'center' }
+    },
+    margin: { left: margin, right: margin },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index === 5) {
+        const variance = variances[data.row.index];
+        if (variance) {
+          data.cell.styles.textColor = variance.change === 0 
+            ? COLORS.textMuted 
+            : variance.isPositive 
+              ? COLORS.success 
+              : COLORS.danger;
+        }
+      }
+    }
+  });
+  
+  // ============ PAGE 2: DEPARTMENT COMPARISON ============
+  doc.addPage();
+  
+  // Header
+  doc.setFillColor(...COLORS.secondary);
+  doc.rect(0, 0, pageWidth, 25, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Department Performance Comparison', margin, 16);
+  
+  doc.setTextColor(...COLORS.text);
+  yPos = 40;
+  
+  // Department variance table
+  autoTable(doc, {
+    startY: yPos,
+    head: [[
+      'Department',
+      `${currentPeriod.label} Revenue`,
+      `${previousPeriod.label} Revenue`,
+      'Revenue Change',
+      'Profit Change',
+      'Margin Δ'
+    ]],
+    body: departmentVariances.map(dept => {
+      const currentDept = currentPeriod.departments.find(d => d.department === dept.department);
+      const prevDept = previousPeriod.departments.find(d => d.department === dept.department);
+      return [
+        dept.displayName,
+        formatCurrency(currentDept?.revenue || 0),
+        formatCurrency(prevDept?.revenue || 0),
+        `${dept.revenueChange >= 0 ? '+' : ''}${formatCurrency(dept.revenueChange)} (${formatPercent(dept.revenueChangePercent)})`,
+        `${dept.profitChange >= 0 ? '+' : ''}${formatCurrency(dept.profitChange)}`,
+        `${dept.marginChange >= 0 ? '+' : ''}${dept.marginChange.toFixed(1)}pp`
+      ];
+    }),
+    theme: 'striped',
+    headStyles: { fillColor: COLORS.primary, fontSize: 9, fontStyle: 'bold' },
+    bodyStyles: { fontSize: 9 },
+    columnStyles: {
+      0: { fontStyle: 'bold' },
+    },
+    margin: { left: margin, right: margin },
+    didParseCell: (data) => {
+      if (data.section === 'body') {
+        const dept = departmentVariances[data.row.index];
+        if (dept && data.column.index >= 3) {
+          const isPositive = data.column.index === 3 
+            ? dept.revenueChange >= 0 
+            : data.column.index === 4 
+              ? dept.profitChange >= 0 
+              : dept.marginChange >= 0;
+          data.cell.styles.textColor = isPositive ? COLORS.success : COLORS.danger;
+        }
+      }
+    }
+  });
+  
+  yPos = (doc as any).lastAutoTable.finalY + 20;
+  
+  // Period Details
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Period Details', margin, yPos);
+  yPos += 10;
+  
+  // Current period details
+  doc.setFillColor(...COLORS.lightGray);
+  doc.roundedRect(margin, yPos, (pageWidth - margin * 2 - 10) / 2, 60, 3, 3, 'F');
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(currentPeriod.label, margin + 5, yPos + 12);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text(`${format(currentPeriod.dateRange.start, 'MMM d')} - ${format(currentPeriod.dateRange.end, 'MMM d, yyyy')}`, margin + 5, yPos + 20);
+  doc.setTextColor(...COLORS.text);
+  doc.text(`Revenue: ${formatCurrency(currentPeriod.revenue)}`, margin + 5, yPos + 32);
+  doc.text(`Gross Margin: ${currentPeriod.grossMargin.toFixed(1)}%`, margin + 5, yPos + 40);
+  doc.text(`Net Margin: ${currentPeriod.netMargin.toFixed(1)}%`, margin + 5, yPos + 48);
+  doc.text(`Orders: ${currentPeriod.orderCount}`, margin + 5, yPos + 56);
+  
+  // Previous period details
+  const rightBoxX = margin + (pageWidth - margin * 2 - 10) / 2 + 10;
+  doc.setFillColor(...COLORS.lightGray);
+  doc.roundedRect(rightBoxX, yPos, (pageWidth - margin * 2 - 10) / 2, 60, 3, 3, 'F');
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.text(previousPeriod.label, rightBoxX + 5, yPos + 12);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...COLORS.textMuted);
+  doc.text(`${format(previousPeriod.dateRange.start, 'MMM d')} - ${format(previousPeriod.dateRange.end, 'MMM d, yyyy')}`, rightBoxX + 5, yPos + 20);
+  doc.setTextColor(...COLORS.text);
+  doc.text(`Revenue: ${formatCurrency(previousPeriod.revenue)}`, rightBoxX + 5, yPos + 32);
+  doc.text(`Gross Margin: ${previousPeriod.grossMargin.toFixed(1)}%`, rightBoxX + 5, yPos + 40);
+  doc.text(`Net Margin: ${previousPeriod.netMargin.toFixed(1)}%`, rightBoxX + 5, yPos + 48);
+  doc.text(`Orders: ${previousPeriod.orderCount}`, rightBoxX + 5, yPos + 56);
+  
+  // Footer on all pages
+  const totalPages = doc.internal.pages.length - 1;
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.text(`Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, pageHeight - 10);
+    doc.text('Comparative P&L Report', pageWidth - margin, pageHeight - 10, { align: 'right' });
+  }
+  
+  doc.save(`Comparative-PL-Report-${currentPeriod.label.replace(/\s/g, '-')}-vs-${previousPeriod.label.replace(/\s/g, '-')}.pdf`);
+}
