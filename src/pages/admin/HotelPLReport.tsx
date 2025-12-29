@@ -3,6 +3,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useHotelSettings } from '@/hooks/useHotelSettings';
 import { useHotelPLData, DepartmentPLData } from '@/hooks/useHotelPLData';
 import { useBudgetTargets, calculateBudgetComparisons } from '@/hooks/useBudgetTargets';
+import { useExpenseTracking, EXPENSE_CATEGORIES, Expense } from '@/hooks/useExpenseTracking';
+import { exportToPDF, exportToExcel } from '@/utils/plReportExport';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AccessDenied } from '@/components/shared/AccessDenied';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import {
   TrendingUp,
@@ -37,6 +40,13 @@ import {
   Plus,
   Check,
   X,
+  Download,
+  FileText,
+  FileSpreadsheet,
+  Building2,
+  Receipt,
+  Users,
+  Trash2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -85,6 +95,7 @@ export default function HotelPLReport() {
     lowStockItems,
     forecast,
     comparison,
+    frontOffice,
     isLoading,
     refetch,
   } = useHotelPLData({
@@ -93,6 +104,49 @@ export default function HotelPLReport() {
     comparisonType,
     forecastDays,
   });
+
+  // Expense tracking
+  const { expenses, summary: expenseSummary, addExpense, deleteExpense, getExpensesByDateRange } = useExpenseTracking();
+  const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
+  const [newExpense, setNewExpense] = useState({ category: 'utilities' as const, description: '', amount: '', date: format(new Date(), 'yyyy-MM-dd'), recurring: false });
+  
+  const periodExpenses = getExpensesByDateRange(dateRange?.from || startDate, dateRange?.to || endDate);
+  const totalExpenses = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const handleAddExpense = () => {
+    if (!newExpense.description || !newExpense.amount) {
+      toast({ title: 'Error', description: 'Please fill all fields', variant: 'destructive' });
+      return;
+    }
+    addExpense({ ...newExpense, amount: parseFloat(newExpense.amount) });
+    toast({ title: 'Success', description: 'Expense added' });
+    setExpenseDialogOpen(false);
+    setNewExpense({ category: 'utilities', description: '', amount: '', date: format(new Date(), 'yyyy-MM-dd'), recurring: false });
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF({
+      summary, departments, inventoryValuation, lowStockItems, forecast,
+      expenses: Object.entries(expenseSummary).filter(([k]) => k !== 'total').map(([category, amount]) => ({ category, amount: amount as number })),
+      frontOffice,
+      dateRange: { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
+      hotelName: settings?.hotel_name,
+      currencySymbol,
+    });
+    toast({ title: 'PDF exported successfully' });
+  };
+
+  const handleExportExcel = () => {
+    exportToExcel({
+      summary, departments, inventoryValuation, lowStockItems, forecast,
+      expenses: Object.entries(expenseSummary).filter(([k]) => k !== 'total').map(([category, amount]) => ({ category, amount: amount as number })),
+      frontOffice,
+      dateRange: { start: dateRange?.from || startDate, end: dateRange?.to || endDate },
+      hotelName: settings?.hotel_name,
+      currencySymbol,
+    });
+    toast({ title: 'Excel exported successfully' });
+  };
 
   // Budget targets
   const { budgets, saveBudget, getBudgetForMonth, isLoading: budgetsLoading } = useBudgetTargets();
@@ -239,6 +293,24 @@ export default function HotelPLReport() {
             <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={handleExportPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportExcel}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export as Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -340,9 +412,11 @@ export default function HotelPLReport() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
+            <TabsTrigger value="frontoffice">Front Office</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="budgets">Budgets</TabsTrigger>
             <TabsTrigger value="comparison">Comparison</TabsTrigger>
             <TabsTrigger value="forecasting">Forecasting</TabsTrigger>
