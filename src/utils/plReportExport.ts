@@ -54,11 +54,13 @@ export function exportToPDF(data: ExportData): void {
   const doc = new jsPDF('p', 'mm', 'a4');
   const { summary, departments, inventoryValuation, lowStockItems, forecast, expenseBreakdown, departmentExpenses, budgetComparisons, frontOffice, dateRange, hotelName, currencySymbol } = data;
   
-  // Currency formatter - use simple string concatenation for reliability
+  // Currency formatter - use simple number formatting for PDF compatibility
   const formatCurrency = (value: number): string => {
-    if (!isFinite(value) || isNaN(value)) return `${currencySymbol} 0`;
-    const formatted = Math.round(value).toLocaleString('en-IN');
-    return `${currencySymbol} ${formatted}`;
+    if (!isFinite(value) || isNaN(value)) return 'Rs. 0';
+    const num = Math.round(value);
+    // Simple comma formatting without locale (more reliable in PDF)
+    const formatted = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `Rs. ${formatted}`;
   };
   
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -783,9 +785,10 @@ export function exportDepartmentBreakdownToPDF(
   const doc = new jsPDF('p', 'mm', 'a4');
   
   const formatCurrency = (value: number): string => {
-    if (!isFinite(value) || isNaN(value)) return `${currencySymbol} 0`;
-    const formatted = Math.round(value).toLocaleString('en-IN');
-    return `${currencySymbol} ${formatted}`;
+    if (!isFinite(value) || isNaN(value)) return 'Rs. 0';
+    const num = Math.round(value);
+    const formatted = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `Rs. ${formatted}`;
   };
   
   const safePercentage = (value: number, total: number): string => {
