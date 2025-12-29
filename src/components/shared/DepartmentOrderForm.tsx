@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Minus, ShoppingCart, Trash2, LucideIcon, Search, User, Building } from 'lucide-react';
 import { CheckedInGuest, useCheckedInGuests } from '@/hooks/useCheckedInGuests';
+import { useTaxSettings, CHARGE_TO_TAX_CATEGORY } from '@/hooks/useTaxSettings';
 
 export interface DepartmentMenuItem {
   id: string;
@@ -72,6 +73,9 @@ export function DepartmentOrderForm({
   const [payNow, setPayNow] = useState(false);
   const [paymentMode, setPaymentMode] = useState('cash');
   
+  // Get tax settings from admin configuration
+  const { calculateTotalTax, isLoading: taxLoading } = useTaxSettings();
+  
   // Guest selection for "Post to Room" feature
   const [guestSearch, setGuestSearch] = useState('');
   const [selectedGuest, setSelectedGuest] = useState<CheckedInGuest | null>(null);
@@ -124,7 +128,8 @@ export function DepartmentOrderForm({
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const taxAmount = subtotal * 0.18;
+  // Use admin tax settings instead of hardcoded 18%
+  const taxAmount = calculateTotalTax([{ category: 'Restaurant', total: subtotal }]);
   const totalAmount = subtotal + taxAmount;
 
   const handlePlaceOrder = async () => {
