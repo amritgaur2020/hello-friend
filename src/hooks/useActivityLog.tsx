@@ -12,35 +12,127 @@ interface LogActivityParams {
   newData?: Json;
 }
 
-// Field labels for human-readable output
+// Field labels for human-readable output across all modules
 const fieldLabels: Record<string, string> = {
+  // Common fields
   name: 'name',
   price: 'price',
   category: 'category',
   status: 'status',
   stock: 'stock',
   quantity: 'quantity',
+  description: 'description',
+  unit: 'unit',
+  notes: 'notes',
+  priority: 'priority',
+  
+  // Menu & Items
   is_available: 'availability',
   is_vegetarian: 'vegetarian status',
   is_vegan: 'vegan status',
-  description: 'description',
-  unit: 'unit',
-  reorder_level: 'reorder level',
+  is_gluten_free: 'gluten-free status',
+  is_spicy: 'spicy status',
+  is_signature: 'signature item',
+  is_recommended: 'recommended status',
+  preparation_time: 'preparation time',
+  serving_size: 'serving size',
+  calories: 'calories',
+  ingredients: 'ingredients',
+  allergens: 'allergens',
+  
+  // Pricing & Finance
   cost_price: 'cost price',
   selling_price: 'selling price',
-  notes: 'notes',
-  room_number: 'room number',
-  guest_name: 'guest name',
-  table_number: 'table number',
-  order_type: 'order type',
-  payment_status: 'payment status',
+  base_price: 'base price',
   total_amount: 'total amount',
+  subtotal: 'subtotal',
+  tax_amount: 'tax amount',
   tax_rate: 'tax rate',
   discount: 'discount',
-  priority: 'priority',
+  discount_amount: 'discount amount',
+  service_charge: 'service charge',
+  grand_total: 'grand total',
+  
+  // Inventory
+  reorder_level: 'reorder level',
+  min_stock: 'minimum stock',
+  max_stock: 'maximum stock',
+  current_stock: 'current stock',
+  opening_stock: 'opening stock',
+  stock_quantity: 'stock quantity',
+  supplier: 'supplier',
+  batch_number: 'batch number',
+  expiry_date: 'expiry date',
+  purchase_date: 'purchase date',
+  
+  // Orders
+  order_type: 'order type',
+  order_status: 'order status',
+  order_number: 'order number',
+  payment_status: 'payment status',
+  payment_method: 'payment method',
+  order_items: 'order items',
+  special_instructions: 'special instructions',
+  
+  // Restaurant & Bar
+  table_number: 'table number',
+  table_name: 'table name',
+  seat_count: 'seat count',
+  section: 'section',
+  floor: 'floor',
+  covers: 'covers',
+  pax: 'number of guests',
+  
+  // Room & Guest
+  room_number: 'room number',
+  room_type: 'room type',
+  guest_name: 'guest name',
+  guest_email: 'guest email',
+  guest_phone: 'guest phone',
+  check_in_date: 'check-in date',
+  check_out_date: 'check-out date',
+  booking_source: 'booking source',
+  
+  // Housekeeping
+  task_type: 'task type',
   assigned_to: 'assigned to',
+  assigned_by: 'assigned by',
   due_date: 'due date',
   completed_at: 'completed at',
+  cleaning_status: 'cleaning status',
+  inspection_status: 'inspection status',
+  
+  // Spa
+  service_name: 'service name',
+  service_type: 'service type',
+  therapist: 'therapist',
+  therapist_name: 'therapist name',
+  duration: 'duration',
+  booking_time: 'booking time',
+  appointment_date: 'appointment date',
+  treatment_room: 'treatment room',
+  
+  // Staff & Users
+  full_name: 'full name',
+  email: 'email',
+  phone: 'phone',
+  role: 'role',
+  department: 'department',
+  shift: 'shift',
+  is_active: 'active status',
+  
+  // Settings & Config
+  tax_name: 'tax name',
+  tax_percentage: 'tax percentage',
+  is_inclusive: 'tax inclusive',
+  is_default: 'default status',
+  display_order: 'display order',
+  
+  // Recipe
+  recipe_name: 'recipe name',
+  recipe_yield: 'recipe yield',
+  recipe_cost: 'recipe cost',
+  food_cost_percentage: 'food cost percentage',
 };
 
 // Format a value for display
