@@ -76,7 +76,7 @@ export function DepartmentOrderForm({
   const [paymentMode, setPaymentMode] = useState('cash');
   
   // Get tax settings from admin configuration
-  const { calculateTotalTax, isLoading: taxLoading } = useTaxSettings();
+  const { calculateTotalTax, getConsolidatedTaxBreakdown, isLoading: taxLoading } = useTaxSettings();
   
   // Guest selection for "Post to Room" feature
   const [guestSearch, setGuestSearch] = useState('');
@@ -403,10 +403,19 @@ export function DepartmentOrderForm({
                 <span>Subtotal</span>
                 <span>{currencySymbol}{subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span>Tax (18%)</span>
-                <span>{currencySymbol}{taxAmount.toFixed(2)}</span>
-              </div>
+              {/* Show dynamic tax breakdown from admin settings */}
+              {getConsolidatedTaxBreakdown([{ category: department, total: subtotal }]).map((tax, idx) => (
+                <div key={idx} className="flex justify-between text-sm text-muted-foreground">
+                  <span>{tax.name} ({tax.percentage}%)</span>
+                  <span>{currencySymbol}{tax.amount.toFixed(2)}</span>
+                </div>
+              ))}
+              {getConsolidatedTaxBreakdown([{ category: department, total: subtotal }]).length === 0 && (
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Tax</span>
+                  <span>{currencySymbol}0.00</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold">
                 <span>Total</span>
                 <span>{currencySymbol}{totalAmount.toFixed(2)}</span>

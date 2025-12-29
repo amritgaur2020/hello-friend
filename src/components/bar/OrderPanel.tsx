@@ -45,7 +45,7 @@ export function OrderPanel({
   isLoading 
 }: OrderPanelProps) {
   const { settings } = useHotelSettings();
-  const { calculateTotalTax } = useTaxSettings();
+  const { calculateTotalTax, getConsolidatedTaxBreakdown } = useTaxSettings();
   const [tableNumber, setTableNumber] = useState('');
   const [orderType, setOrderType] = useState<'dine_in' | 'room_service' | 'takeaway'>('dine_in');
   const [notes, setNotes] = useState('');
@@ -188,10 +188,19 @@ export function OrderPanel({
             <span>Subtotal</span>
             <span>{currencySymbol}{subtotal.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-muted-foreground">
-            <span>Tax (18%)</span>
-            <span>{currencySymbol}{taxAmount.toFixed(2)}</span>
-          </div>
+          {/* Show dynamic tax breakdown from admin settings */}
+          {getConsolidatedTaxBreakdown([{ category: 'Bar', total: subtotal }]).map((tax, idx) => (
+            <div key={idx} className="flex justify-between text-muted-foreground">
+              <span>{tax.name} ({tax.percentage}%)</span>
+              <span>{currencySymbol}{tax.amount.toFixed(2)}</span>
+            </div>
+          ))}
+          {getConsolidatedTaxBreakdown([{ category: 'Bar', total: subtotal }]).length === 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <span>Tax</span>
+              <span>{currencySymbol}0.00</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
             <span>Total</span>
             <span className="text-primary">{currencySymbol}{total.toFixed(2)}</span>
