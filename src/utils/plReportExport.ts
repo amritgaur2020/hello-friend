@@ -1055,3 +1055,418 @@ export function exportDepartmentBreakdownToExcel(
   
   XLSX.writeFile(workbook, `Department-Breakdown-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
 }
+
+// ============ TAX FILING P&L REPORT ============
+interface TaxReportData {
+  summary: HotelPLSummary;
+  departments: DepartmentPLData[];
+  expenseBreakdown?: { category: string; amount: number }[];
+  dateRange: { start: Date; end: Date };
+  hotelName?: string;
+  currencySymbol: string;
+  taxIdentificationNumber?: string;
+  registeredAddress?: string;
+  financialYear?: string;
+}
+
+export function exportTaxFilingReport(data: TaxReportData): void {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const { summary, departments, expenseBreakdown, dateRange, hotelName, taxIdentificationNumber, registeredAddress, financialYear } = data;
+  
+  const formatCurrency = (value: number): string => {
+    if (!isFinite(value) || isNaN(value)) return '0.00';
+    const num = Math.abs(value);
+    const formatted = num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return value < 0 ? `(${formatted})` : formatted;
+  };
+  
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  // Calculate totals
+  const totalRevenue = summary.totalRevenue;
+  const totalCOGS = summary.totalCOGS;
+  const grossProfit = summary.grossProfit;
+  const totalExpenses = expenseBreakdown?.reduce((sum, e) => sum + e.amount, 0) || 0;
+  const operatingProfit = grossProfit - totalExpenses;
+  const totalTax = summary.totalTax;
+  const netProfit = summary.netProfit;
+  
+  // ============ PAGE 1: INCOME STATEMENT ============
+  
+  // Company Header - Professional letterhead style
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, pageWidth, 50, 'F');
+  
+  // Border line at top
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(1);
+  doc.line(margin, 15, pageWidth - margin, 15);
+  
+  // Company Name - Centered, Bold
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  const companyName = hotelName || 'COMPANY NAME';
+  doc.text(companyName.toUpperCase(), pageWidth / 2, 25, { align: 'center' });
+  
+  // Registration details
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  if (registeredAddress) {
+    doc.text(registeredAddress, pageWidth / 2, 32, { align: 'center' });
+  }
+  if (taxIdentificationNumber) {
+    doc.text(`Tax ID: ${taxIdentificationNumber}`, pageWidth / 2, 38, { align: 'center' });
+  }
+  
+  // Double line after header
+  doc.setLineWidth(0.5);
+  doc.line(margin, 45, pageWidth - margin, 45);
+  doc.line(margin, 46.5, pageWidth - margin, 46.5);
+  
+  // Report Title
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('STATEMENT OF PROFIT AND LOSS', pageWidth / 2, 56, { align: 'center' });
+  
+  // Period
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  const periodText = `For the period ${format(dateRange.start, 'dd MMMM yyyy')} to ${format(dateRange.end, 'dd MMMM yyyy')}`;
+  doc.text(periodText, pageWidth / 2, 63, { align: 'center' });
+  
+  if (financialYear) {
+    doc.setFontSize(9);
+    doc.text(`Financial Year: ${financialYear}`, pageWidth / 2, 69, { align: 'center' });
+  }
+  
+  // Currency note
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'italic');
+  doc.text('(All amounts in Indian Rupees unless otherwise stated)', pageWidth / 2, 76, { align: 'center' });
+  
+  let yPos = 85;
+  
+  // Income Statement Table - Professional accounting format
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  
+  // Table headers
+  const col1 = margin;
+  const col2 = margin + 100;
+  const col3 = pageWidth - margin - 35;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('Particulars', col1, yPos);
+  doc.text('Schedule', col2, yPos);
+  doc.text('Amount', col3, yPos);
+  
+  // Header underline
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos + 2, pageWidth - margin, yPos + 2);
+  
+  yPos += 10;
+  doc.setFont('helvetica', 'normal');
+  
+  // REVENUE FROM OPERATIONS
+  doc.setFont('helvetica', 'bold');
+  doc.text('I. REVENUE FROM OPERATIONS', col1, yPos);
+  yPos += 7;
+  
+  doc.setFont('helvetica', 'normal');
+  departments.forEach((dept) => {
+    doc.text(`    ${dept.displayName}`, col1, yPos);
+    doc.text(formatCurrency(dept.revenue), col3, yPos, { align: 'right' });
+    yPos += 6;
+  });
+  
+  // Total Revenue
+  doc.setLineWidth(0.2);
+  doc.line(col3 - 30, yPos - 2, col3, yPos - 2);
+  doc.setFont('helvetica', 'bold');
+  doc.text('    Total Revenue from Operations', col1, yPos);
+  doc.text(formatCurrency(totalRevenue), col3, yPos, { align: 'right' });
+  yPos += 10;
+  
+  // COST OF MATERIALS
+  doc.text('II. COST OF MATERIALS CONSUMED', col1, yPos);
+  yPos += 7;
+  
+  doc.setFont('helvetica', 'normal');
+  departments.forEach((dept) => {
+    if (dept.cogs > 0) {
+      doc.text(`    ${dept.displayName} - Cost of Goods`, col1, yPos);
+      doc.text(formatCurrency(dept.cogs), col3, yPos, { align: 'right' });
+      yPos += 6;
+    }
+  });
+  
+  // Total COGS
+  doc.setLineWidth(0.2);
+  doc.line(col3 - 30, yPos - 2, col3, yPos - 2);
+  doc.setFont('helvetica', 'bold');
+  doc.text('    Total Cost of Materials Consumed', col1, yPos);
+  doc.text(formatCurrency(totalCOGS), col3, yPos, { align: 'right' });
+  yPos += 10;
+  
+  // GROSS PROFIT
+  doc.setLineWidth(0.3);
+  doc.line(col3 - 35, yPos - 2, col3, yPos - 2);
+  doc.text('III. GROSS PROFIT (I - II)', col1, yPos);
+  doc.text(formatCurrency(grossProfit), col3, yPos, { align: 'right' });
+  yPos += 10;
+  
+  // OPERATING EXPENSES
+  if (expenseBreakdown && expenseBreakdown.length > 0) {
+    doc.text('IV. OTHER EXPENSES', col1, yPos);
+    yPos += 7;
+    
+    doc.setFont('helvetica', 'normal');
+    expenseBreakdown.forEach((expense) => {
+      const categoryLabel = expense.category.charAt(0).toUpperCase() + expense.category.slice(1).replace(/_/g, ' ');
+      doc.text(`    ${categoryLabel}`, col1, yPos);
+      doc.text(formatCurrency(expense.amount), col3, yPos, { align: 'right' });
+      yPos += 6;
+    });
+    
+    // Total Expenses
+    doc.setLineWidth(0.2);
+    doc.line(col3 - 30, yPos - 2, col3, yPos - 2);
+    doc.setFont('helvetica', 'bold');
+    doc.text('    Total Other Expenses', col1, yPos);
+    doc.text(formatCurrency(totalExpenses), col3, yPos, { align: 'right' });
+    yPos += 10;
+  }
+  
+  // PROFIT BEFORE TAX
+  doc.setLineWidth(0.3);
+  doc.line(col3 - 35, yPos - 2, col3, yPos - 2);
+  const pbtLabel = expenseBreakdown && expenseBreakdown.length > 0 ? 'V. PROFIT BEFORE TAX (III - IV)' : 'IV. PROFIT BEFORE TAX';
+  doc.text(pbtLabel, col1, yPos);
+  doc.text(formatCurrency(operatingProfit), col3, yPos, { align: 'right' });
+  yPos += 10;
+  
+  // TAX EXPENSE
+  const taxLabel = expenseBreakdown && expenseBreakdown.length > 0 ? 'VI. TAX EXPENSE' : 'V. TAX EXPENSE';
+  doc.text(taxLabel, col1, yPos);
+  yPos += 7;
+  
+  doc.setFont('helvetica', 'normal');
+  doc.text('    Current Tax', col1, yPos);
+  doc.text(formatCurrency(totalTax), col3, yPos, { align: 'right' });
+  yPos += 10;
+  
+  // NET PROFIT
+  doc.setLineWidth(0.5);
+  doc.line(col3 - 35, yPos - 2, col3, yPos - 2);
+  doc.setFont('helvetica', 'bold');
+  const netProfitLabel = expenseBreakdown && expenseBreakdown.length > 0 ? 'VII. PROFIT/(LOSS) FOR THE PERIOD' : 'VI. PROFIT/(LOSS) FOR THE PERIOD';
+  doc.text(netProfitLabel, col1, yPos);
+  doc.text(formatCurrency(netProfit), col3, yPos, { align: 'right' });
+  
+  // Double underline for final figure
+  doc.setLineWidth(0.3);
+  doc.line(col3 - 35, yPos + 2, col3, yPos + 2);
+  doc.line(col3 - 35, yPos + 4, col3, yPos + 4);
+  
+  yPos += 20;
+  
+  // Earnings Per Share section (placeholder)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('Earnings Per Share (EPS)', col1, yPos);
+  yPos += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.text('    Basic and Diluted', col1, yPos);
+  doc.text('As per computation', col3, yPos, { align: 'right' });
+  
+  // Footer section
+  yPos = pageHeight - 50;
+  
+  doc.setLineWidth(0.3);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 8;
+  
+  doc.setFontSize(8);
+  doc.text('Notes:', margin, yPos);
+  yPos += 5;
+  doc.text('1. The above statement has been prepared in accordance with applicable accounting standards.', margin, yPos);
+  yPos += 4;
+  doc.text('2. Previous period figures have been regrouped/reclassified wherever necessary.', margin, yPos);
+  yPos += 4;
+  doc.text('3. Significant accounting policies and notes form an integral part of this statement.', margin, yPos);
+  
+  // Signature section
+  yPos = pageHeight - 20;
+  doc.setFontSize(9);
+  doc.text('For ' + companyName, pageWidth - margin - 50, yPos);
+  yPos += 10;
+  doc.text('Authorized Signatory', pageWidth - margin - 50, yPos);
+  
+  // ============ PAGE 2: DEPARTMENT-WISE SCHEDULE ============
+  doc.addPage();
+  
+  // Header
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('SCHEDULE - DEPARTMENT-WISE REVENUE BREAKDOWN', pageWidth / 2, 20, { align: 'center' });
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Period: ${format(dateRange.start, 'dd/MM/yyyy')} to ${format(dateRange.end, 'dd/MM/yyyy')}`, pageWidth / 2, 28, { align: 'center' });
+  
+  // Department breakdown table
+  autoTable(doc, {
+    startY: 35,
+    head: [[
+      'Department',
+      'Gross Revenue',
+      'Cost of Sales',
+      'Gross Profit',
+      'Margin %',
+      'Tax Applicable'
+    ]],
+    body: departments.map(d => [
+      d.displayName,
+      formatCurrency(d.revenue),
+      formatCurrency(d.cogs),
+      formatCurrency(d.grossProfit),
+      `${d.margin.toFixed(1)}%`,
+      formatCurrency(d.tax)
+    ]),
+    foot: [[
+      'TOTAL',
+      formatCurrency(totalRevenue),
+      formatCurrency(totalCOGS),
+      formatCurrency(grossProfit),
+      `${summary.grossMargin.toFixed(1)}%`,
+      formatCurrency(totalTax)
+    ]],
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.1,
+    },
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+      halign: 'center',
+    },
+    bodyStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+    },
+    footStyles: {
+      fillColor: [240, 240, 240],
+      textColor: [0, 0, 0],
+      fontStyle: 'bold',
+    },
+    columnStyles: {
+      0: { halign: 'left' },
+      1: { halign: 'right' },
+      2: { halign: 'right' },
+      3: { halign: 'right' },
+      4: { halign: 'center' },
+      5: { halign: 'right' },
+    },
+    margin: { left: margin, right: margin },
+  });
+  
+  // ============ PAGE 3: COMPUTATION OF TAX ============
+  doc.addPage();
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('COMPUTATION OF TAX LIABILITY', pageWidth / 2, 20, { align: 'center' });
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Assessment Period: ${format(dateRange.start, 'dd/MM/yyyy')} to ${format(dateRange.end, 'dd/MM/yyyy')}`, pageWidth / 2, 28, { align: 'center' });
+  
+  let taxY = 40;
+  const taxCol1 = margin;
+  const taxCol2 = pageWidth - margin - 40;
+  
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Particulars', taxCol1, taxY);
+  doc.text('Amount', taxCol2, taxY);
+  doc.setLineWidth(0.3);
+  doc.line(margin, taxY + 2, pageWidth - margin, taxY + 2);
+  
+  taxY += 10;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  
+  // Gross Total Income
+  doc.text('Gross Total Income', taxCol1, taxY);
+  doc.text(formatCurrency(totalRevenue), taxCol2, taxY, { align: 'right' });
+  taxY += 8;
+  
+  // Less: Cost of Sales
+  doc.text('Less: Cost of Sales', taxCol1, taxY);
+  doc.text(`(${formatCurrency(totalCOGS)})`, taxCol2, taxY, { align: 'right' });
+  taxY += 8;
+  
+  // Less: Operating Expenses
+  if (totalExpenses > 0) {
+    doc.text('Less: Operating Expenses', taxCol1, taxY);
+    doc.text(`(${formatCurrency(totalExpenses)})`, taxCol2, taxY, { align: 'right' });
+    taxY += 8;
+  }
+  
+  // Taxable Income
+  doc.setLineWidth(0.2);
+  doc.line(taxCol2 - 30, taxY - 2, taxCol2, taxY - 2);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Taxable Income', taxCol1, taxY);
+  doc.text(formatCurrency(operatingProfit), taxCol2, taxY, { align: 'right' });
+  taxY += 12;
+  
+  // Tax Computation
+  doc.text('Tax Computation:', taxCol1, taxY);
+  taxY += 8;
+  
+  doc.setFont('helvetica', 'normal');
+  const effectiveTaxRate = totalRevenue > 0 ? (totalTax / operatingProfit * 100) : 0;
+  doc.text(`    Tax on Business Income @ ${effectiveTaxRate.toFixed(2)}%`, taxCol1, taxY);
+  doc.text(formatCurrency(totalTax), taxCol2, taxY, { align: 'right' });
+  taxY += 12;
+  
+  // Total Tax Liability
+  doc.setLineWidth(0.3);
+  doc.line(taxCol2 - 30, taxY - 2, taxCol2, taxY - 2);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total Tax Liability', taxCol1, taxY);
+  doc.text(formatCurrency(totalTax), taxCol2, taxY, { align: 'right' });
+  
+  // Double underline
+  doc.setLineWidth(0.2);
+  doc.line(taxCol2 - 30, taxY + 2, taxCol2, taxY + 2);
+  doc.line(taxCol2 - 30, taxY + 4, taxCol2, taxY + 4);
+  
+  taxY += 20;
+  
+  // Net Profit After Tax
+  doc.text('Net Profit After Tax', taxCol1, taxY);
+  doc.text(formatCurrency(netProfit), taxCol2, taxY, { align: 'right' });
+  
+  // Footer on all pages
+  const totalPages = doc.internal.pages.length - 1;
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    doc.text(`Generated on: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, margin, pageHeight - 10);
+    doc.text('For Tax Filing Purposes', pageWidth - margin, pageHeight - 10, { align: 'right' });
+  }
+  
+  doc.save(`Tax-PL-Statement-${format(dateRange.start, 'yyyy-MM')}.pdf`);
+}
