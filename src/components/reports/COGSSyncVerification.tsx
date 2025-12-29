@@ -212,11 +212,24 @@ export function COGSSyncVerification({
                       </Badge>
                     )}
                   </div>
-                  {!result.isSynced && (
-                    <span className="text-sm text-amber-600 font-medium">
-                      Δ {formatCurrency(result.difference)} ({result.percentageDiff.toFixed(2)}%)
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!result.isSynced && (
+                      <span className="text-sm text-amber-600 font-medium">
+                        Δ {formatCurrency(result.difference)} ({result.percentageDiff.toFixed(2)}%)
+                      </span>
+                    )}
+                    {startDate && endDate && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuickSync(result.department)}
+                        className="ml-2"
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Quick Sync
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">
