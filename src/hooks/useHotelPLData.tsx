@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfDay, endOfDay, format, subDays } from 'date-fns';
+import { useQueryClient } from '@tanstack/react-query';
 import { PLMetrics, calculatePLMetrics, comparePLMetrics, getComparisonPeriodDates, PLComparison } from './usePLCostCalculation';
 import { calculateForecast, aggregateDailyData, Forecast, DailyData } from '@/utils/forecastingUtils';
 
@@ -15,6 +16,14 @@ export interface DepartmentPLData {
   orderCount: number;
   avgOrderValue: number;
   trend: number; // percentage change from previous period
+}
+
+export interface FrontOfficeData {
+  checkIns: number;
+  checkOuts: number;
+  revenue: number;
+  occupancyRate: number;
+  avgStayDuration: number;
 }
 
 export interface InventoryValuation {
@@ -55,6 +64,7 @@ export interface UseHotelPLDataResult {
   forecast: Forecast;
   departmentDailyData: Map<string, DailyData[]>;
   comparison: PLComparison | null;
+  frontOffice: FrontOfficeData;
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
@@ -73,7 +83,7 @@ const DEPARTMENT_CONFIG = {
   kitchen: { displayName: 'Kitchen', color: 'hsl(var(--chart-3))' },
   spa: { displayName: 'Spa', color: 'hsl(var(--chart-4))' },
   housekeeping: { displayName: 'Housekeeping', color: 'hsl(var(--chart-5))' },
-  rooms: { displayName: 'Room Charges', color: 'hsl(var(--primary))' },
+  frontoffice: { displayName: 'Front Office', color: 'hsl(var(--primary))' },
 };
 
 export function useHotelPLData({
@@ -90,6 +100,9 @@ export function useHotelPLData({
     kitchenOrders: any[];
     spaBookings: any[];
     billingItems: any[];
+    checkIns: any[];
+    billing: any[];
+    rooms: any[];
     barInventory: any[];
     restaurantInventory: any[];
     kitchenInventory: any[];
@@ -100,6 +113,8 @@ export function useHotelPLData({
     previousKitchenOrders: any[];
     previousSpaBookings: any[];
   } | null>(null);
+  
+  const queryClient = useQueryClient();
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -121,6 +136,9 @@ export function useHotelPLData({
         kitchenOrdersRes,
         spaBookingsRes,
         billingItemsRes,
+        checkInsRes,
+        billingRes,
+        roomsRes,
         barInventoryRes,
         restaurantInventoryRes,
         kitchenInventoryRes,
@@ -133,10 +151,14 @@ export function useHotelPLData({
       ] = await Promise.all([
         // Current period orders
         supabase.from('bar_orders').select('*').gte('created_at', startStr).lte('created_at', endStr),
-        supabase.from('restaurant_orders').select('*').gte('created_at', startStr).lte('created_at', endStr),
+        supabase.from('restaurant_orders').select('*, restaurant_order_items(*)').gte('created_at', startStr).lte('created_at', endStr),
         supabase.from('kitchen_orders').select('*').gte('created_at', startStr).lte('created_at', endStr),
         supabase.from('spa_bookings').select('*').gte('created_at', startStr).lte('created_at', endStr).eq('status', 'completed'),
         supabase.from('billing_items').select('*, billing!inner(status)').eq('billing.status', 'paid'),
+        // Front Office data
+        supabase.from('check_ins').select('*, room:rooms(room_number, room_type_id), guest:guests(full_name)').gte('check_in_time', startStr).lte('check_in_time', endStr),
+        supabase.from('billing').select('*').gte('created_at', startStr).lte('created_at', endStr),
+        supabase.from('rooms').select('*, room_type:room_types(name, base_price)'),
         // Inventory
         supabase.from('bar_inventory').select('*'),
         supabase.from('restaurant_inventory').select('*'),
@@ -156,6 +178,9 @@ export function useHotelPLData({
         kitchenOrders: kitchenOrdersRes.data || [],
         spaBookings: spaBookingsRes.data || [],
         billingItems: billingItemsRes.data || [],
+        checkIns: checkInsRes.data || [],
+        billing: billingRes.data || [],
+        rooms: roomsRes.data || [],
         barInventory: barInventoryRes.data || [],
         restaurantInventory: restaurantInventoryRes.data || [],
         kitchenInventory: kitchenInventoryRes.data || [],
@@ -177,8 +202,28 @@ export function useHotelPLData({
     fetchData();
   }, [startDate, endDate, comparisonType]);
 
+  // Real-time subscriptions for live updates
+  useEffect(() => {
+    const channels = [
+      supabase.channel('pl-bar-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'bar_orders' }, () => fetchData()),
+      supabase.channel('pl-restaurant-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'restaurant_orders' }, () => fetchData()),
+      supabase.channel('pl-kitchen-orders').on('postgres_changes', { event: '*', schema: 'public', table: 'kitchen_orders' }, () => fetchData()),
+      supabase.channel('pl-spa-bookings').on('postgres_changes', { event: '*', schema: 'public', table: 'spa_bookings' }, () => fetchData()),
+      supabase.channel('pl-check-ins').on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, () => fetchData()),
+      supabase.channel('pl-billing').on('postgres_changes', { event: '*', schema: 'public', table: 'billing' }, () => fetchData()),
+    ];
+
+    channels.forEach(channel => channel.subscribe());
+
+    return () => {
+      channels.forEach(channel => supabase.removeChannel(channel));
+    };
+  }, []);
+
   // Process data
   const processedData = useMemo(() => {
+    const defaultFrontOffice: FrontOfficeData = { checkIns: 0, checkOuts: 0, revenue: 0, occupancyRate: 0, avgStayDuration: 0 };
+    
     if (!rawData) {
       return {
         summary: { totalRevenue: 0, totalCOGS: 0, grossProfit: 0, grossMargin: 0, netProfit: 0, netMargin: 0, totalOrders: 0, avgOrderValue: 0 },
@@ -189,6 +234,7 @@ export function useHotelPLData({
         forecast: { projectedRevenue: 0, projectedCOGS: 0, projectedProfit: 0, confidence: 'low' as const, dailyProjections: [], trendDirection: 'stable' as const, growthRate: 0, dayOfWeekAnalysis: [] },
         departmentDailyData: new Map(),
         comparison: null,
+        frontOffice: defaultFrontOffice,
       };
     }
 
@@ -236,27 +282,48 @@ export function useHotelPLData({
       };
     };
 
-    // Calculate room charges from billing items
-    const calculateRoomMetrics = (billingItems: any[]): DepartmentPLData => {
-      const config = DEPARTMENT_CONFIG.rooms;
-      const roomItems = billingItems.filter(item => 
-        item.item_type === 'room_charge' || item.item_type === 'room' || item.item_type === 'accommodation'
-      );
-      const revenue = roomItems.reduce((sum, item) => sum + (item.total || item.amount || 0), 0);
-
+    // Calculate Front Office metrics from check-ins and billing
+    const calculateFrontOfficeMetrics = (): { data: FrontOfficeData, deptData: DepartmentPLData } => {
+      const config = DEPARTMENT_CONFIG.frontoffice;
+      const checkIns = rawData.checkIns.length;
+      const checkOuts = rawData.checkIns.filter(ci => ci.actual_check_out || ci.status === 'checked_out').length;
+      
+      // Calculate revenue from billing (room charges)
+      const revenue = rawData.billing.reduce((sum, b) => sum + (b.total_amount || 0), 0);
+      
+      // Occupancy rate calculation
+      const totalRooms = rawData.rooms.length || 1;
+      const occupiedRooms = rawData.checkIns.filter(ci => ci.status === 'checked_in').length;
+      const occupancyRate = (occupiedRooms / totalRooms) * 100;
+      
+      // Average stay duration
+      const staysWithDuration = rawData.checkIns.filter(ci => ci.check_in_time && ci.actual_check_out);
+      const avgStayDuration = staysWithDuration.length > 0
+        ? staysWithDuration.reduce((sum, ci) => {
+            const checkIn = new Date(ci.check_in_time);
+            const checkOut = new Date(ci.actual_check_out);
+            return sum + Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
+          }, 0) / staysWithDuration.length
+        : 0;
+      
       return {
-        department: 'rooms',
-        displayName: config.displayName,
-        color: config.color,
-        revenue,
-        cogs: 0, // No COGS for room charges
-        grossProfit: revenue,
-        margin: 100,
-        orderCount: roomItems.length,
-        avgOrderValue: roomItems.length > 0 ? revenue / roomItems.length : 0,
-        trend: 0,
+        data: { checkIns, checkOuts, revenue, occupancyRate, avgStayDuration },
+        deptData: {
+          department: 'frontoffice',
+          displayName: config.displayName,
+          color: config.color,
+          revenue,
+          cogs: 0,
+          grossProfit: revenue,
+          margin: 100,
+          orderCount: checkIns,
+          avgOrderValue: checkIns > 0 ? revenue / checkIns : 0,
+          trend: 0,
+        },
       };
     };
+    
+    const frontOfficeResult = calculateFrontOfficeMetrics();
 
     // Build departments array
     const departments: DepartmentPLData[] = [
@@ -264,7 +331,7 @@ export function useHotelPLData({
       calculateDeptMetrics(rawData.restaurantOrders, 'restaurant', rawData.previousRestaurantOrders),
       calculateDeptMetrics(rawData.kitchenOrders, 'kitchen', rawData.previousKitchenOrders),
       calculateSpaMetrics(rawData.spaBookings, rawData.previousSpaBookings),
-      calculateRoomMetrics(rawData.billingItems),
+      frontOfficeResult.deptData,
     ].filter(d => d.revenue > 0 || d.orderCount > 0);
 
     // Calculate inventory valuation
@@ -400,6 +467,7 @@ export function useHotelPLData({
       forecast,
       departmentDailyData,
       comparison,
+      frontOffice: frontOfficeResult.data,
     };
   }, [rawData, forecastDays]);
 
