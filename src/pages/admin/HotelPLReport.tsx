@@ -842,6 +842,8 @@ export default function HotelPLReport() {
                         cogs: d.cogs,
                       }))}
                       currencySymbol={currencySymbol}
+                      startDate={dateRange?.from || startDate}
+                      endDate={dateRange?.to || endDate}
                     />
                   </div>
                 )}
