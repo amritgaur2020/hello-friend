@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useMemo } from 'react';
 
 export interface TaxSetting {
   id: string;
@@ -17,30 +18,44 @@ export interface TaxBreakdownItem {
   category: string;
 }
 
-// Tax category mapping
-export const TAX_CATEGORIES = {
+// Fixed tax category mapping for non-department categories
+export const FIXED_TAX_CATEGORIES = {
   ROOM_CHARGES: 'room_charges',
-  FOOD_BEVERAGE: 'food_beverage',
   SERVICES: 'services',
   AMENITIES: 'amenities',
   LAUNDRY: 'laundry',
-  SPA: 'spa',
   PARKING: 'parking',
   OTHERS: 'others',
 } as const;
 
-// Map charge categories to tax categories
-export const CHARGE_TO_TAX_CATEGORY: Record<string, string> = {
-  'Room Charges': TAX_CATEGORIES.ROOM_CHARGES,
-  'Bar': TAX_CATEGORIES.FOOD_BEVERAGE,
-  'Restaurant': TAX_CATEGORIES.FOOD_BEVERAGE,
-  'Kitchen': TAX_CATEGORIES.FOOD_BEVERAGE,
-  'Spa': TAX_CATEGORIES.SPA,
-  'Laundry': TAX_CATEGORIES.LAUNDRY,
-  'Parking': TAX_CATEGORIES.PARKING,
-  'Services': TAX_CATEGORIES.SERVICES,
-  'Amenities': TAX_CATEGORIES.AMENITIES,
-  'Additional': TAX_CATEGORIES.OTHERS,
+// Helper to convert department/category name to tax category key
+export const normalizeTaxCategory = (category: string): string => {
+  // First check if it's a known fixed category
+  const lowerCategory = category.toLowerCase();
+  
+  // Direct mappings for common names
+  const directMappings: Record<string, string> = {
+    'room charges': 'room_charges',
+    'room_charges': 'room_charges',
+    'bar': 'bar',
+    'restaurant': 'restaurant',
+    'kitchen': 'kitchen',
+    'spa': 'spa',
+    'spa & wellness': 'spa',
+    'laundry': 'laundry',
+    'parking': 'parking',
+    'services': 'services',
+    'amenities': 'amenities',
+    'additional': 'others',
+    'others': 'others',
+  };
+  
+  if (directMappings[lowerCategory]) {
+    return directMappings[lowerCategory];
+  }
+  
+  // Convert to snake_case for dynamic matching
+  return lowerCategory.replace(/\s+/g, '_');
 };
 
 export function useTaxSettings() {
@@ -59,7 +74,7 @@ export function useTaxSettings() {
 
   // Get applicable taxes for a specific category
   const getTaxesForCategory = (category: string): TaxSetting[] => {
-    const taxCategory = CHARGE_TO_TAX_CATEGORY[category] || TAX_CATEGORIES.OTHERS;
+    const taxCategory = normalizeTaxCategory(category);
     
     return taxes.filter(tax => {
       // If applies_to is null or empty, tax applies to all categories

@@ -19,7 +19,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
-import { useTaxSettings, CHARGE_TO_TAX_CATEGORY } from "@/hooks/useTaxSettings";
+import { useTaxSettings } from "@/hooks/useTaxSettings";
 import { useModuleAccess } from "@/hooks/usePermissions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -194,16 +194,14 @@ export function OrderHistoryContent({
 
   // Calculate tax based on admin tax settings
   const calculateAutoTax = (subtotal: number): number => {
-    // Map department to tax category
-    const taxCategory = CHARGE_TO_TAX_CATEGORY[department] || 'food_beverage';
-    const taxAmount = calculateTotalTax([{ category: taxCategory, total: subtotal }]);
+    // Use department name directly - getTaxesForCategory will normalize it
+    const taxAmount = calculateTotalTax([{ category: department, total: subtotal }]);
     return taxAmount;
   };
 
   // Get tax breakdown for display
   const getTaxBreakdownDisplay = (subtotal: number) => {
-    const taxCategory = CHARGE_TO_TAX_CATEGORY[department] || 'food_beverage';
-    return getConsolidatedTaxBreakdown([{ category: taxCategory, total: subtotal }]);
+    return getConsolidatedTaxBreakdown([{ category: department, total: subtotal }]);
   };
 
   const recalculateSubtotal = (existingItems: any[], addedItems: any[]) => {
