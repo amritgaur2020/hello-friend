@@ -1202,55 +1202,105 @@ export default function HotelPLReport() {
                           })()}
                         </div>
 
-                        {/* Department Breakdown */}
+                        {/* Department Breakdown with Progress Bars */}
                         <div className="border-t pt-4">
                           <p className="text-sm font-medium mb-3 flex items-center gap-2">
                             <BarChart3 className="h-4 w-4" />
                             Department Contribution Breakdown
                           </p>
-                          <div className="space-y-2">
-                            {budgetComparisons.map((bc, i) => {
+                          <div className="space-y-4">
+                            {(() => {
                               const totalRevenue = budgetComparisons.reduce((sum, b) => sum + b.revenueActual, 0);
                               const totalCogs = budgetComparisons.reduce((sum, b) => sum + b.cogsActual, 0);
                               const totalProfit = budgetComparisons.reduce((sum, b) => sum + b.profitActual, 0);
-                              const revenueContrib = totalRevenue > 0 ? (bc.revenueActual / totalRevenue) * 100 : 0;
-                              const cogsContrib = totalCogs > 0 ? (bc.cogsActual / totalCogs) * 100 : 0;
-                              const profitContrib = totalProfit > 0 ? (bc.profitActual / totalProfit) * 100 : 0;
                               
-                              // Validation: Department profit should equal revenue - cogs
-                              const expectedProfit = bc.revenueActual - bc.cogsActual;
-                              const profitValid = Math.abs(expectedProfit - bc.profitActual) < 1;
-                              
-                              if (bc.revenueActual === 0 && bc.cogsActual === 0) return null;
-                              
-                              return (
-                                <div key={bc.department} className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
-                                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                                  <span className="font-medium text-sm w-24 flex-shrink-0">{bc.displayName}</span>
-                                  <div className="flex-1 grid grid-cols-3 gap-2 text-xs">
-                                    <div className="flex items-center justify-between px-2 py-1 rounded bg-muted/50">
-                                      <span className="text-muted-foreground">Revenue:</span>
-                                      <span className="font-medium">{formatCurrency(bc.revenueActual)} <span className="text-muted-foreground">({revenueContrib.toFixed(1)}%)</span></span>
+                              return budgetComparisons.map((bc, i) => {
+                                const revenueContrib = totalRevenue > 0 ? (bc.revenueActual / totalRevenue) * 100 : 0;
+                                const cogsContrib = totalCogs > 0 ? (bc.cogsActual / totalCogs) * 100 : 0;
+                                const profitContrib = totalProfit > 0 ? (bc.profitActual / totalProfit) * 100 : 0;
+                                
+                                // Validation: Department profit should equal revenue - cogs
+                                const expectedProfit = bc.revenueActual - bc.cogsActual;
+                                const profitValid = Math.abs(expectedProfit - bc.profitActual) < 1;
+                                
+                                if (bc.revenueActual === 0 && bc.cogsActual === 0) return null;
+                                
+                                const deptColor = COLORS[i % COLORS.length];
+                                
+                                return (
+                                  <div key={bc.department} className="p-3 rounded-lg bg-background/50 border space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: deptColor }} />
+                                        <span className="font-medium">{bc.displayName}</span>
+                                      </div>
+                                      {profitValid ? (
+                                        <Badge variant="outline" className="text-xs border-green-500 text-green-600">
+                                          <Check className="h-3 w-3 mr-1" />
+                                          Verified
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="text-xs border-amber-500 text-amber-600">
+                                          <AlertTriangle className="h-3 w-3 mr-1" />
+                                          Check
+                                        </Badge>
+                                      )}
                                     </div>
-                                    <div className="flex items-center justify-between px-2 py-1 rounded bg-muted/50">
-                                      <span className="text-muted-foreground">COGS:</span>
-                                      <span className="font-medium">{formatCurrency(bc.cogsActual)} <span className="text-muted-foreground">({cogsContrib.toFixed(1)}%)</span></span>
+                                    
+                                    {/* Revenue Progress Bar */}
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span className="text-muted-foreground">Revenue</span>
+                                        <span className="font-medium">{formatCurrency(bc.revenueActual)} ({revenueContrib.toFixed(1)}%)</span>
+                                      </div>
+                                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full rounded-full transition-all duration-500"
+                                          style={{ 
+                                            width: `${revenueContrib}%`, 
+                                            backgroundColor: deptColor 
+                                          }}
+                                        />
+                                      </div>
                                     </div>
-                                    <div className="flex items-center justify-between px-2 py-1 rounded bg-muted/50">
-                                      <span className="text-muted-foreground">Profit:</span>
-                                      <span className="font-medium flex items-center gap-1">
-                                        {formatCurrency(bc.profitActual)} <span className="text-muted-foreground">({profitContrib.toFixed(1)}%)</span>
-                                        {profitValid ? (
-                                          <Check className="h-3 w-3 text-green-500" />
-                                        ) : (
-                                          <AlertTriangle className="h-3 w-3 text-amber-500" />
-                                        )}
-                                      </span>
+                                    
+                                    {/* COGS Progress Bar */}
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span className="text-muted-foreground">COGS</span>
+                                        <span className="font-medium">{formatCurrency(bc.cogsActual)} ({cogsContrib.toFixed(1)}%)</span>
+                                      </div>
+                                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full rounded-full transition-all duration-500 opacity-70"
+                                          style={{ 
+                                            width: `${cogsContrib}%`, 
+                                            backgroundColor: deptColor 
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Profit Progress Bar */}
+                                    <div className="space-y-1">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span className="text-muted-foreground">Profit</span>
+                                        <span className="font-medium text-green-600">{formatCurrency(bc.profitActual)} ({profitContrib.toFixed(1)}%)</span>
+                                      </div>
+                                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full rounded-full transition-all duration-500"
+                                          style={{ 
+                                            width: `${Math.max(profitContrib, 0)}%`, 
+                                            backgroundColor: 'hsl(var(--chart-2))' 
+                                          }}
+                                        />
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              });
+                            })()}
                           </div>
                         </div>
 
