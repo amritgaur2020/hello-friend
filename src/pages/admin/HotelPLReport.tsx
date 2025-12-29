@@ -691,75 +691,125 @@ export default function HotelPLReport() {
             </Card>
 
             {/* Net Profit Trend Chart */}
-            <Card>
-              <CardHeader className="border-b">
+            <Card className="overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg font-semibold">Net Profit Trend</CardTitle>
-                    <CardDescription>Month-over-month performance after all expenses</CardDescription>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-semibold">Net Profit Trend</CardTitle>
+                      <CardDescription>Month-over-month performance after all expenses</CardDescription>
+                    </div>
                   </div>
-                  <Badge variant="outline">Last 6 Months</Badge>
+                  <Badge variant="secondary" className="font-medium">Last 6 Months</Badge>
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
                 {historicalPLData.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
-                    <LineChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Historical data will appear as you view reports over time</p>
+                    <div className="p-4 bg-muted/50 rounded-full w-fit mx-auto mb-4">
+                      <LineChart className="h-12 w-12 opacity-50" />
+                    </div>
+                    <p className="text-sm">Historical data will appear as you view reports over time</p>
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <ComposedChart data={historicalPLData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis 
-                        dataKey="monthLabel" 
-                        tick={{ fontSize: 12 }} 
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 12 }} 
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) => `${currencySymbol}${(value / 1000).toFixed(0)}k`}
-                      />
-                      <Tooltip 
-                        formatter={(value: number, name: string) => [formatCurrency(value), name]}
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--background))', 
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <Legend />
-                      <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
-                      <Area 
-                        type="monotone" 
-                        dataKey="revenue" 
-                        name="Revenue"
-                        fill="hsl(var(--chart-1))" 
-                        fillOpacity={0.1}
-                        stroke="hsl(var(--chart-1))"
-                        strokeWidth={1}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="netProfit" 
-                        name="Net Profit"
-                        stroke="hsl(var(--chart-2))"
-                        strokeWidth={3}
-                        dot={{ fill: 'hsl(var(--chart-2))', strokeWidth: 2, r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                      <Bar 
-                        dataKey="expenses" 
-                        name="Expenses"
-                        fill="hsl(var(--chart-5))"
-                        opacity={0.6}
-                        radius={[4, 4, 0, 0]}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+                  <>
+                    {/* Legend */}
+                    <div className="flex items-center justify-center gap-6 mb-6">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-[hsl(217,91%,60%)]" />
+                        <span className="text-sm text-muted-foreground">Revenue</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-[hsl(142,71%,45%)]" />
+                        <span className="text-sm text-muted-foreground">Net Profit</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded bg-[hsl(var(--destructive))] opacity-60" />
+                        <span className="text-sm text-muted-foreground">Expenses</span>
+                      </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={320}>
+                      <ComposedChart data={historicalPLData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.3} />
+                            <stop offset="100%" stopColor="hsl(217, 91%, 60%)" stopOpacity={0.05} />
+                          </linearGradient>
+                          <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0.1} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid 
+                          strokeDasharray="3 3" 
+                          stroke="hsl(var(--border))" 
+                          vertical={false}
+                        />
+                        <XAxis 
+                          dataKey="monthLabel" 
+                          tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                          tickLine={false}
+                          axisLine={false}
+                          dy={10}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) => `${currencySymbol}${(value / 1000).toFixed(0)}k`}
+                          width={60}
+                        />
+                        <Tooltip 
+                          formatter={(value: number, name: string) => [formatCurrency(value), name]}
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--card))', 
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          }}
+                          cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
+                        />
+                        <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeOpacity={0.5} />
+                        <Area 
+                          type="monotone" 
+                          dataKey="revenue" 
+                          name="Revenue"
+                          fill="url(#revenueGradient)" 
+                          stroke="hsl(217, 91%, 60%)"
+                          strokeWidth={2}
+                        />
+                        <Bar 
+                          dataKey="expenses" 
+                          name="Expenses"
+                          fill="url(#expenseGradient)"
+                          radius={[4, 4, 0, 0]}
+                          maxBarSize={40}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="netProfit" 
+                          name="Net Profit"
+                          stroke="hsl(142, 71%, 45%)"
+                          strokeWidth={3}
+                          dot={{ 
+                            fill: 'hsl(142, 71%, 45%)', 
+                            strokeWidth: 2, 
+                            r: 5,
+                            stroke: 'hsl(var(--card))'
+                          }}
+                          activeDot={{ 
+                            r: 7, 
+                            stroke: 'hsl(142, 71%, 45%)',
+                            strokeWidth: 2,
+                            fill: 'hsl(var(--card))'
+                          }}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </>
                 )}
               </CardContent>
             </Card>
