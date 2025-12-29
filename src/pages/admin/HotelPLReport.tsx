@@ -419,25 +419,25 @@ export default function HotelPLReport() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-950/20 dark:to-emerald-950/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <Skeleton className="h-8 w-32" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold text-green-600">{formatCurrency(summary.netProfit)}</div>
-                  {comparison && (
-                    <div className="flex items-center gap-1 text-sm">
-                      <TrendIcon value={comparison.changes.netProfit.percentage} />
-                      <span className={comparison.changes.netProfit.percentage >= 0 ? 'text-green-500' : 'text-red-500'}>
-                        {formatPercent(comparison.changes.netProfit.percentage)}
-                      </span>
-                    </div>
-                  )}
+                  <div className={`text-2xl font-bold ${(summary.operatingProfit - totalExpenses) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(summary.operatingProfit - totalExpenses)}
+                  </div>
+                  <div className="flex items-center gap-1 text-sm mt-1">
+                    <Badge variant="secondary" className="text-xs">
+                      {summary.totalRevenue > 0 ? (((summary.operatingProfit - totalExpenses) / summary.totalRevenue) * 100).toFixed(1) : 0}% margin
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">after all expenses</span>
+                  </div>
                 </>
               )}
             </CardContent>
@@ -458,6 +458,218 @@ export default function HotelPLReport() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4">
+            {/* P&L Waterfall - Full Width */}
+            <Card className="border-2 border-primary/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <LineChart className="h-5 w-5" />
+                  P&L Waterfall - From Revenue to Net Profit
+                </CardTitle>
+                <CardDescription>
+                  Complete breakdown showing how revenue flows through to final net profit after all deductions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <Skeleton className="h-[200px] w-full" />
+                ) : (
+                  <div className="space-y-4">
+                    {/* Waterfall Flow */}
+                    <div className="grid grid-cols-1 md:grid-cols-7 gap-2 items-stretch">
+                      {/* Revenue */}
+                      <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg p-4 text-center">
+                        <div className="text-xs font-medium opacity-80 uppercase">Total Revenue</div>
+                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.totalRevenue)}</div>
+                        <div className="text-xs opacity-70">100%</div>
+                      </div>
+
+                      {/* Minus Arrow */}
+                      <div className="flex items-center justify-center text-red-500 font-bold text-xl">
+                        <span className="hidden md:inline">−</span>
+                        <span className="md:hidden">↓ −</span>
+                      </div>
+
+                      {/* COGS */}
+                      <div className="bg-gradient-to-br from-red-400 to-red-500 text-white rounded-lg p-4 text-center">
+                        <div className="text-xs font-medium opacity-80 uppercase">COGS</div>
+                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.totalCOGS)}</div>
+                        <div className="text-xs opacity-70">
+                          {summary.totalRevenue > 0 ? ((summary.totalCOGS / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                        </div>
+                      </div>
+
+                      {/* Equals Arrow */}
+                      <div className="flex items-center justify-center text-green-500 font-bold text-xl">
+                        <span className="hidden md:inline">=</span>
+                        <span className="md:hidden">↓ =</span>
+                      </div>
+
+                      {/* Gross Profit */}
+                      <div className="bg-gradient-to-br from-green-400 to-green-500 text-white rounded-lg p-4 text-center">
+                        <div className="text-xs font-medium opacity-80 uppercase">Gross Profit</div>
+                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.grossProfit)}</div>
+                        <div className="text-xs opacity-70">{summary.grossMargin.toFixed(1)}% margin</div>
+                      </div>
+
+                      {/* Minus Arrow */}
+                      <div className="flex items-center justify-center text-orange-500 font-bold text-xl">
+                        <span className="hidden md:inline">−</span>
+                        <span className="md:hidden">↓ −</span>
+                      </div>
+
+                      {/* Tax */}
+                      <div className="bg-gradient-to-br from-orange-400 to-orange-500 text-white rounded-lg p-4 text-center">
+                        <div className="text-xs font-medium opacity-80 uppercase">Tax</div>
+                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.totalTax)}</div>
+                        <div className="text-xs opacity-70">
+                          {summary.totalRevenue > 0 ? ((summary.totalTax / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Second Row - Operating Profit to Net Profit */}
+                    <div className="grid grid-cols-1 md:grid-cols-7 gap-2 items-stretch">
+                      {/* Operating Profit */}
+                      <div className="bg-gradient-to-br from-teal-400 to-teal-500 text-white rounded-lg p-4 text-center md:col-start-1">
+                        <div className="text-xs font-medium opacity-80 uppercase">Operating Profit</div>
+                        <div className="text-xl font-bold mt-1">{formatCurrency(summary.operatingProfit)}</div>
+                        <div className="text-xs opacity-70">{summary.operatingMargin.toFixed(1)}% margin</div>
+                      </div>
+
+                      {/* Minus Arrow */}
+                      <div className="flex items-center justify-center text-purple-500 font-bold text-xl">
+                        <span className="hidden md:inline">−</span>
+                        <span className="md:hidden">↓ −</span>
+                      </div>
+
+                      {/* Operating Expenses */}
+                      <div className="bg-gradient-to-br from-purple-400 to-purple-500 text-white rounded-lg p-4 text-center">
+                        <div className="text-xs font-medium opacity-80 uppercase">Operating Expenses</div>
+                        <div className="text-xl font-bold mt-1">{formatCurrency(totalExpenses)}</div>
+                        <div className="text-xs opacity-70">
+                          {summary.totalRevenue > 0 ? ((totalExpenses / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                        </div>
+                      </div>
+
+                      {/* Equals Arrow */}
+                      <div className="flex items-center justify-center text-emerald-600 font-bold text-xl">
+                        <span className="hidden md:inline">=</span>
+                        <span className="md:hidden">↓ =</span>
+                      </div>
+
+                      {/* Net Profit */}
+                      <div className={`rounded-lg p-4 text-center md:col-span-3 border-2 ${
+                        (summary.operatingProfit - totalExpenses) >= 0 
+                          ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white border-emerald-400' 
+                          : 'bg-gradient-to-br from-red-500 to-red-600 text-white border-red-400'
+                      }`}>
+                        <div className="text-xs font-medium opacity-80 uppercase">Net Profit (After All Expenses)</div>
+                        <div className="text-2xl font-bold mt-1">{formatCurrency(summary.operatingProfit - totalExpenses)}</div>
+                        <div className="text-sm opacity-80">
+                          {summary.totalRevenue > 0 ? (((summary.operatingProfit - totalExpenses) / summary.totalRevenue) * 100).toFixed(1) : 0}% Net Margin
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Summary Breakdown Table */}
+                    <div className="mt-6 border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-left p-3 font-medium">Item</th>
+                            <th className="text-right p-3 font-medium">Amount</th>
+                            <th className="text-right p-3 font-medium">% of Revenue</th>
+                            <th className="text-center p-3 font-medium">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          <tr className="bg-blue-50/50 dark:bg-blue-950/20">
+                            <td className="p-3 font-medium">Total Revenue</td>
+                            <td className="p-3 text-right font-bold">{formatCurrency(summary.totalRevenue)}</td>
+                            <td className="p-3 text-right">100.0%</td>
+                            <td className="p-3 text-center"><Badge className="bg-blue-500">Base</Badge></td>
+                          </tr>
+                          <tr>
+                            <td className="p-3 pl-6 text-muted-foreground">Less: Cost of Goods Sold</td>
+                            <td className="p-3 text-right text-red-600">({formatCurrency(summary.totalCOGS)})</td>
+                            <td className="p-3 text-right text-muted-foreground">
+                              {summary.totalRevenue > 0 ? ((summary.totalCOGS / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                            </td>
+                            <td className="p-3 text-center"><Badge variant="outline" className="text-red-500 border-red-200">Deduction</Badge></td>
+                          </tr>
+                          <tr className="bg-green-50/50 dark:bg-green-950/20">
+                            <td className="p-3 font-medium">Gross Profit</td>
+                            <td className="p-3 text-right font-bold text-green-600">{formatCurrency(summary.grossProfit)}</td>
+                            <td className="p-3 text-right">{summary.grossMargin.toFixed(1)}%</td>
+                            <td className="p-3 text-center"><Badge className="bg-green-500">Subtotal</Badge></td>
+                          </tr>
+                          <tr>
+                            <td className="p-3 pl-6 text-muted-foreground">Less: Taxes</td>
+                            <td className="p-3 text-right text-orange-600">({formatCurrency(summary.totalTax)})</td>
+                            <td className="p-3 text-right text-muted-foreground">
+                              {summary.totalRevenue > 0 ? ((summary.totalTax / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                            </td>
+                            <td className="p-3 text-center"><Badge variant="outline" className="text-orange-500 border-orange-200">Deduction</Badge></td>
+                          </tr>
+                          <tr className="bg-teal-50/50 dark:bg-teal-950/20">
+                            <td className="p-3 font-medium">Operating Profit</td>
+                            <td className="p-3 text-right font-bold text-teal-600">{formatCurrency(summary.operatingProfit)}</td>
+                            <td className="p-3 text-right">{summary.operatingMargin.toFixed(1)}%</td>
+                            <td className="p-3 text-center"><Badge className="bg-teal-500">Subtotal</Badge></td>
+                          </tr>
+                          <tr>
+                            <td className="p-3 pl-6 text-muted-foreground">Less: Operating Expenses</td>
+                            <td className="p-3 text-right text-purple-600">({formatCurrency(totalExpenses)})</td>
+                            <td className="p-3 text-right text-muted-foreground">
+                              {summary.totalRevenue > 0 ? ((totalExpenses / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                            </td>
+                            <td className="p-3 text-center"><Badge variant="outline" className="text-purple-500 border-purple-200">Deduction</Badge></td>
+                          </tr>
+                          <tr className={`${(summary.operatingProfit - totalExpenses) >= 0 ? 'bg-emerald-100 dark:bg-emerald-950/30' : 'bg-red-100 dark:bg-red-950/30'}`}>
+                            <td className="p-3 font-bold text-lg">Net Profit</td>
+                            <td className={`p-3 text-right font-bold text-lg ${(summary.operatingProfit - totalExpenses) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {formatCurrency(summary.operatingProfit - totalExpenses)}
+                            </td>
+                            <td className="p-3 text-right font-medium">
+                              {summary.totalRevenue > 0 ? (((summary.operatingProfit - totalExpenses) / summary.totalRevenue) * 100).toFixed(1) : 0}%
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge className={`${(summary.operatingProfit - totalExpenses) >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}>
+                                {(summary.operatingProfit - totalExpenses) >= 0 ? 'Profit' : 'Loss'}
+                              </Badge>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Expense Breakdown Summary */}
+                    {totalExpenses > 0 && (
+                      <div className="mt-4 p-4 bg-muted/30 rounded-lg">
+                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                          <Receipt className="h-4 w-4" />
+                          Operating Expenses Breakdown
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                          {Object.entries(expenseSummary)
+                            .filter(([key, value]) => key !== 'total' && (value as number) > 0)
+                            .map(([category, amount]) => (
+                              <div key={category} className="bg-background rounded-lg p-3 border">
+                                <div className="text-xs text-muted-foreground capitalize">{category}</div>
+                                <div className="font-bold text-sm">{formatCurrency(amount as number)}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {totalExpenses > 0 ? (((amount as number) / totalExpenses) * 100).toFixed(0) : 0}%
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <div className="grid gap-4 lg:grid-cols-2">
               {/* Revenue by Department Pie Chart */}
               <Card>
