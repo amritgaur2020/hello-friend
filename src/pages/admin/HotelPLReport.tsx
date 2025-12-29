@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useHotelSettings } from '@/hooks/useHotelSettings';
-import { useHotelPLData, DepartmentPLData, COGSDebugData } from '@/hooks/useHotelPLData';
+import { useHotelPLData, DepartmentPLData } from '@/hooks/useHotelPLData';
 import { useBudgetTargets, calculateBudgetComparisons } from '@/hooks/useBudgetTargets';
 import { useExpenseTracking, EXPENSE_CATEGORIES, DEPARTMENTS_LIST, Expense } from '@/hooks/useExpenseTracking';
 import { exportToPDF, exportToExcel } from '@/utils/plReportExport';
-import { COGSSyncVerification } from '@/components/reports/COGSSyncVerification';
+
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AccessDenied } from '@/components/shared/AccessDenied';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,7 +50,6 @@ import {
   Users,
   Trash2,
   Repeat,
-  Bug,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
@@ -102,7 +101,6 @@ export default function HotelPLReport() {
     forecast,
     comparison,
     frontOffice,
-    cogsDebugData,
     isLoading,
     refetch,
   } = useHotelPLData({
@@ -111,10 +109,6 @@ export default function HotelPLReport() {
     comparisonType,
     forecastDays,
   });
-
-  // Debug mode state
-  const [debugMode, setDebugMode] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   // Expense tracking
   const { expenses, summary: expenseSummary, departmentSummaries, addExpense, deleteExpense, getExpensesByDateRange, getExpensesByDepartment, generateRecurringExpenses } = useExpenseTracking();
@@ -452,13 +446,9 @@ export default function HotelPLReport() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-8">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="departments">Departments</TabsTrigger>
-            <TabsTrigger value="cogs-debug" className="flex items-center gap-1">
-              <Bug className="h-3 w-3" />
-              COGS Debug
-            </TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="budgets">Budgets</TabsTrigger>
             <TabsTrigger value="comparison">Comparison</TabsTrigger>
@@ -627,229 +617,6 @@ export default function HotelPLReport() {
             </Card>
           </TabsContent>
 
-          {/* COGS Debug Tab */}
-          <TabsContent value="cogs-debug" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bug className="h-5 w-5" />
-                      COGS Calculation Debug
-                    </CardTitle>
-                    <CardDescription>
-                      Verify COGS calculations by department with detailed recipe cost breakdown
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="debug-mode" className="text-sm">Show all details</Label>
-                    <Switch
-                      id="debug-mode"
-                      checked={debugMode}
-                      onCheckedChange={setDebugMode}
-                    />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <Skeleton className="h-64 w-full" />
-                ) : cogsDebugData.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    No order data available for the selected period
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Summary by Department */}
-                    <div className="grid gap-4 md:grid-cols-3">
-                      {cogsDebugData.map((dept, i) => (
-                        <Card key={dept.department} className="border-2" style={{ borderColor: COLORS[i % COLORS.length] }}>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-lg">{dept.displayName}</CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Orders</span>
-                              <span className="font-medium">{dept.orderCount}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Order Items</span>
-                              <span className="font-medium">{dept.orderItemCount}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Recipe-based Items</span>
-                              <span className="font-medium text-green-600">{dept.recipeBasedItems}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Estimated Items (30%)</span>
-                              <span className="font-medium text-amber-600">{dept.estimatedItems}</span>
-                            </div>
-                            <div className="pt-2 border-t">
-                              <div className="flex justify-between">
-                                <span className="font-medium">Total COGS</span>
-                                <span className="text-lg font-bold">{formatCurrency(dept.totalCOGS)}</span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-
-                    {/* Detailed Breakdown */}
-                    {cogsDebugData.map((dept, deptIndex) => (
-                      <Card key={dept.department}>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[deptIndex % COLORS.length] }} />
-                            {dept.displayName} - Recipe Cost Breakdown
-                          </CardTitle>
-                          <CardDescription>
-                            {dept.breakdown.length} unique menu items sold
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            {dept.breakdown.slice(0, debugMode ? undefined : 10).map((item) => {
-                              const isExpanded = expandedItems.has(item.menuItemId);
-                              const toggleExpand = () => {
-                                const newSet = new Set(expandedItems);
-                                if (isExpanded) {
-                                  newSet.delete(item.menuItemId);
-                                } else {
-                                  newSet.add(item.menuItemId);
-                                }
-                                setExpandedItems(newSet);
-                              };
-
-                              return (
-                                <div key={item.menuItemId} className="border rounded-lg">
-                                  <button
-                                    onClick={toggleExpand}
-                                    className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      {item.ingredients.length > 0 ? (
-                                        isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
-                                      ) : (
-                                        <div className="w-4" />
-                                      )}
-                                      <span className="font-medium">{item.menuItemName}</span>
-                                      <Badge variant="outline">x{item.quantity}</Badge>
-                                      {item.isEstimated && (
-                                        <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-                                          Estimated (30%)
-                                        </Badge>
-                                      )}
-                                      {!item.isEstimated && item.ingredients.length > 0 && (
-                                        <Badge variant="secondary" className="bg-green-100 text-green-700">
-                                          Recipe-based ({item.ingredients.length} ingredients)
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <span className="font-bold">{formatCurrency(item.totalCOGS)}</span>
-                                  </button>
-                                  
-                                  {isExpanded && item.ingredients.length > 0 && (
-                                    <div className="px-3 pb-3 border-t bg-muted/30">
-                                      <table className="w-full text-sm mt-2">
-                                        <thead>
-                                          <tr className="text-muted-foreground">
-                                            <th className="text-left py-1">Ingredient</th>
-                                            <th className="text-right py-1">Qty Used</th>
-                                            <th className="text-right py-1">Unit</th>
-                                            <th className="text-right py-1">Cost/Unit</th>
-                                            <th className="text-right py-1">Total Cost</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {item.ingredients.map((ing, ingIndex) => (
-                                            <tr key={ingIndex} className="border-t border-muted">
-                                              <td className="py-1">{ing.name}</td>
-                                              <td className="text-right py-1">{ing.quantityUsed.toFixed(2)}</td>
-                                              <td className="text-right py-1">{ing.unit}</td>
-                                              <td className="text-right py-1">{formatCurrency(ing.costPerUnit)}</td>
-                                              <td className="text-right py-1 font-medium">{formatCurrency(ing.totalCost)}</td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                        <tfoot>
-                                          <tr className="border-t-2 font-medium">
-                                            <td colSpan={4} className="py-1">Item COGS (x{item.quantity})</td>
-                                            <td className="text-right py-1">{formatCurrency(item.totalCOGS)}</td>
-                                          </tr>
-                                        </tfoot>
-                                      </table>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                            
-                            {!debugMode && dept.breakdown.length > 10 && (
-                              <div className="text-center py-2">
-                                <Button variant="ghost" size="sm" onClick={() => setDebugMode(true)}>
-                                  Show {dept.breakdown.length - 10} more items
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="mt-4 pt-4 border-t flex justify-between items-center">
-                            <span className="text-lg font-medium">Department Total COGS</span>
-                            <span className="text-2xl font-bold">{formatCurrency(dept.totalCOGS)}</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-
-                    {/* Grand Total */}
-                    <Card className="bg-muted/50">
-                      <CardContent className="pt-6">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-lg font-medium">Grand Total COGS (All Departments)</p>
-                            <p className="text-sm text-muted-foreground">
-                              This should match the Hotel P/L COGS: {formatCurrency(summary.totalCOGS)}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-3xl font-bold">
-                              {formatCurrency(cogsDebugData.reduce((sum, d) => sum + d.totalCOGS, 0))}
-                            </p>
-                            {Math.abs(cogsDebugData.reduce((sum, d) => sum + d.totalCOGS, 0) - summary.totalCOGS) < 1 ? (
-                              <Badge className="bg-green-100 text-green-700 border-green-300">
-                                <Check className="h-3 w-3 mr-1" />
-                                Synced
-                              </Badge>
-                            ) : (
-                              <Badge variant="destructive">
-                                <X className="h-3 w-3 mr-1" />
-                                Mismatch: {formatCurrency(Math.abs(cogsDebugData.reduce((sum, d) => sum + d.totalCOGS, 0) - summary.totalCOGS))}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* COGS Sync Verification with Department P/L Reports */}
-                    <COGSSyncVerification
-                      cogsDebugData={cogsDebugData}
-                      hotelPLCOGS={summary.totalCOGS}
-                      departmentPLCOGS={departments.map(d => ({
-                        department: d.department,
-                        displayName: d.displayName,
-                        cogs: d.cogs,
-                      }))}
-                      currencySymbol={currencySymbol}
-                      startDate={dateRange?.from || startDate}
-                      endDate={dateRange?.to || endDate}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Expenses Tab */}
           <TabsContent value="expenses" className="space-y-4">
