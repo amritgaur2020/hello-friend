@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -33,7 +33,8 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Receipt } from 'lucide-react';
+import { Plus, Pencil, Trash2, Receipt, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface TaxSetting {
   id: string;
@@ -45,13 +46,18 @@ interface TaxSetting {
   created_at: string;
 }
 
-const APPLICABLE_CATEGORIES = [
+interface Department {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+// Fixed categories that are always available (not department-based)
+const FIXED_CATEGORIES = [
   { key: 'room_charges', label: 'Room Charges' },
-  { key: 'food_beverage', label: 'Food & Beverage' },
   { key: 'services', label: 'Services' },
   { key: 'amenities', label: 'Amenities' },
   { key: 'laundry', label: 'Laundry' },
-  { key: 'spa', label: 'Spa & Wellness' },
   { key: 'parking', label: 'Parking' },
   { key: 'others', label: 'Others' },
 ];
@@ -67,6 +73,37 @@ export default function TaxSettings() {
     applies_to: [] as string[],
     is_active: true,
   });
+
+  // Fetch active departments to build dynamic categories
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data as Department[];
+    },
+  });
+
+  // Build dynamic categories from departments + fixed categories
+  const APPLICABLE_CATEGORIES = useMemo(() => {
+    const departmentCategories = departments.map(dept => ({
+      key: dept.name.toLowerCase().replace(/\s+/g, '_'),
+      label: dept.name,
+    }));
+    
+    // Combine fixed categories with department categories, avoiding duplicates
+    const fixedKeys = FIXED_CATEGORIES.map(c => c.key);
+    const uniqueDeptCategories = departmentCategories.filter(
+      dc => !fixedKeys.includes(dc.key) && 
+            !['administration', 'front_desk', 'housekeeping'].includes(dc.key)
+    );
+    
+    return [...FIXED_CATEGORIES, ...uniqueDeptCategories];
+  }, [departments]);
 
   const { data: taxes = [], isLoading } = useQuery({
     queryKey: ['tax_settings'],
@@ -196,7 +233,10 @@ export default function TaxSettings() {
   };
 
   const getCategoryLabel = (key: string) => {
-    return APPLICABLE_CATEGORIES.find((c) => c.key === key)?.label || key;
+    const found = APPLICABLE_CATEGORIES.find((c) => c.key === key);
+    if (found) return found.label;
+    // Fallback: capitalize the key
+    return key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
   return (
@@ -214,6 +254,15 @@ export default function TaxSettings() {
             Add Tax
           </Button>
         </div>
+
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            <strong>How taxes work:</strong> Configure taxes for specific departments/categories. 
+            New orders will automatically calculate taxes based on active settings. 
+            <span className="text-muted-foreground"> Previous orders retain their original tax amounts and are not affected by changes.</span>
+          </AlertDescription>
+        </Alert>
 
         <Card>
           <CardHeader>

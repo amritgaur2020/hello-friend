@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { BarOrder, BarOrderItem } from '@/types/bar';
 import { useHotelSettings } from '@/hooks/useHotelSettings';
-import { useTaxSettings, CHARGE_TO_TAX_CATEGORY } from '@/hooks/useTaxSettings';
+import { useTaxSettings } from '@/hooks/useTaxSettings';
 import { format } from 'date-fns';
 
 interface BillPrintProps {

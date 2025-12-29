@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Minus, ShoppingCart, Trash2, LucideIcon, Search, User, Building } from 'lucide-react';
 import { CheckedInGuest, useCheckedInGuests } from '@/hooks/useCheckedInGuests';
-import { useTaxSettings, CHARGE_TO_TAX_CATEGORY } from '@/hooks/useTaxSettings';
+import { useTaxSettings } from '@/hooks/useTaxSettings';
 
 export interface DepartmentMenuItem {
   id: string;
@@ -56,6 +56,7 @@ interface DepartmentOrderFormProps {
   title?: string;
   subtitle?: string;
   showPaymentOptions?: boolean;
+  department?: string; // For tax calculation
 }
 
 export function DepartmentOrderForm({
@@ -65,6 +66,7 @@ export function DepartmentOrderForm({
   currencySymbol = '₹',
   ItemIcon,
   showPaymentOptions = false,
+  department = 'Restaurant', // Default to Restaurant for backward compatibility
 }: DepartmentOrderFormProps) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [tableNumber, setTableNumber] = useState('');
@@ -128,8 +130,8 @@ export function DepartmentOrderForm({
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  // Use admin tax settings instead of hardcoded 18%
-  const taxAmount = calculateTotalTax([{ category: 'Restaurant', total: subtotal }]);
+  // Use admin tax settings - pass the department prop for correct tax calculation
+  const taxAmount = calculateTotalTax([{ category: department, total: subtotal }]);
   const totalAmount = subtotal + taxAmount;
 
   const handlePlaceOrder = async () => {
