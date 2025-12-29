@@ -1,9 +1,8 @@
-import * as React from "react";
-
+import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
-const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => {
+const Skeleton = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  function Skeleton({ className, ...props }, ref) {
     return (
       <div
         ref={ref}
@@ -13,6 +12,5 @@ const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
     );
   }
 );
-Skeleton.displayName = "Skeleton";
 
 export { Skeleton };
